@@ -221,6 +221,7 @@ export interface CharacterInfo {
   mana: number;
   createdAt: number;
   lastPlayed: number;
+  currentZone?: ZoneId;
 }
 
 // ============================================================
