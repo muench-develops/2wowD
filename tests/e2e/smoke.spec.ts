@@ -10,6 +10,7 @@ test.describe('Smoke tests', () => {
     });
 
     await page.goto('/');
+    // cspell:disable-next-line
     await page.waitForLoadState('networkidle');
 
     expect(errors).toEqual([]);

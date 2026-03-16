@@ -24,11 +24,11 @@ test.describe('Auth flow', () => {
 
     await expect(usernameInput).toBeVisible();
 
-    await usernameInput.fill('testplayer');
-    await passwordInput.fill('testpassword');
+    await usernameInput.fill('TestPlayer');
+    await passwordInput.fill('TestPassword1');
 
-    await expect(usernameInput).toHaveValue('testplayer');
-    await expect(passwordInput).toHaveValue('testpassword');
+    await expect(usernameInput).toHaveValue('TestPlayer');
+    await expect(passwordInput).toHaveValue('TestPassword1');
   });
 
   test('login with empty fields shows error', async ({ page }) => {
