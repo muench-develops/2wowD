@@ -12,6 +12,7 @@ How to decide who handles what.
 | Architecture, scope, code review | Deckard | Multi-agent coordination, API design |
 | Tests, quality, edge cases | Lyndon | Unit tests, integration tests, build verification |
 | Docker, CI/CD, GitHub Actions, linting | Haedrig | Dockerfiles, MegaLinter, repo setup |
+| Code review, clean code, PR quality | Kormac | All PRs before merge, SOLID, DRY, naming |
 | Async issue work | @copilot 🤖 | Well-defined tasks matching capability profile |
 | Session logging | Scribe | Automatic — never needs routing |
 

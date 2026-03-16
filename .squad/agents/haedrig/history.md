@@ -28,3 +28,22 @@
 - .eslintrc.json: @typescript-eslint/recommended, warn on unused vars + explicit any
 - .markdownlint.json: disabled MD013 (line length), MD033 (inline HTML), MD041 (first-line heading)
 - .github/workflows/mega-linter.yml: runs on push/PR to main, oxsecurity/megalinter@v8
+
+### 2026-03-16: Branch protection on main
+- Applied via GitHub REST API (gh api)
+- Required PR reviews: 1 approving review
+- Required status checks: MegaLinter (strict mode — branch must be up-to-date)
+- enforce_admins: false (owner can bypass in emergencies)
+- Force pushes and branch deletion: disabled
+
+### 2026-03-16: GitHub labels + issues created
+- Created 7 squad labels: squad, squad:tyrael, squad:leah, squad:kormac, wave-a, wave-b, wave-c
+- Created 7 feature issues:
+  - #1 Items, Inventory & Loot (wave-a, tyrael+leah)
+  - #2 Mob & Map Collision (wave-a, tyrael)
+  - #3 Zones, Portals & Dungeon (wave-a, tyrael+leah)
+  - #4 New Player Guide (wave-a, leah)
+  - #5 Potions & Consumables (wave-b, tyrael+leah) — depends on #1
+  - #6 Equipment & Gear (wave-b, tyrael+leah) — depends on #1
+  - #7 NPCs & Quest System (wave-c, tyrael+leah) — depends on #1 + #3
+- Wave structure: A (foundation, no deps) → B (needs items) → C (needs items+zones)
