@@ -33,7 +33,7 @@ export class CharacterSelectScene extends Phaser.Scene {
   private net!: NetworkManager;
   private accountId = '';
   private characters: CharacterSummary[] = [];
-  private _listeners: Array<{ event: string; cb: (data: any) => void }> = [];
+  private _listeners: Array<{ event: string; cb: (data: unknown) => void }> = [];
 
   // UI containers
   private slotsContainer!: Phaser.GameObjects.Container;

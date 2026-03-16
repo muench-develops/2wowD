@@ -186,7 +186,7 @@ export class LoginScene extends Phaser.Scene {
     ];
   }
 
-  private _listeners: Array<{ event: string; cb: (data: any) => void }> = [];
+  private _listeners: Array<{ event: string; cb: (data: unknown) => void }> = [];
 
   private cleanupListeners(): void {
     for (const { event, cb } of this._listeners) {

@@ -168,7 +168,7 @@ export class EscMenu {
     const zone = this.scene.add
       .zone(x, cy, BUTTON_WIDTH, BUTTON_HEIGHT)
       .setOrigin(0)
-      .setInteractive({ useHandCursor: true });
+      .setInteractive({ useHandCursor: !dimmed });
     this.container!.add(zone);
 
     zone.on('pointerover', () => {
@@ -189,7 +189,9 @@ export class EscMenu {
       text.setColor(dimmed ? '#666688' : '#ddddee');
     });
 
-    zone.on('pointerdown', onClick);
+    if (!dimmed) {
+      zone.on('pointerdown', onClick);
+    }
 
     return { bg, text, zone, baseColor, hoverColor };
   }

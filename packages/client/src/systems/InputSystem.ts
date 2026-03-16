@@ -2,7 +2,6 @@ import Phaser from 'phaser';
 import {
   Vec2,
   normalize,
-  vectorToDirection,
   ClientMessageType,
 } from '@2wowd/shared';
 import { getTileAtScreen } from './IsometricHelper';
@@ -86,6 +85,13 @@ export class InputSystem {
   update(): void {
     // ESC toggles game menu regardless of other input state
     if (Phaser.Input.Keyboard.JustDown(this.keys.ESC)) {
+      // Stop movement before opening menu
+      const wasMoving = this.lastDir.x !== 0 || this.lastDir.y !== 0;
+      if (wasMoving) {
+        this.moveSeq++;
+        this.scene.events.emit('requestStopMove', this.moveSeq);
+        this.lastDir = { x: 0, y: 0 };
+      }
       this.scene.events.emit('toggleEscMenu');
       return;
     }
