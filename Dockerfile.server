@@ -18,6 +18,8 @@ RUN npm run build -w packages/shared && npm run build -w packages/server
 # Run stage
 FROM node:20-alpine
 
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
 WORKDIR /app
 
 COPY --from=build /app/package.json /app/package-lock.json ./
@@ -29,9 +31,7 @@ RUN npm ci --workspace=packages/shared --workspace=packages/server --include-wor
 COPY --from=build /app/packages/shared/dist packages/shared/dist/
 COPY --from=build /app/packages/server/dist packages/server/dist/
 
-# Create non-root user
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup && \
-    chown -R appuser:appgroup /app
+RUN chown -R appuser:appgroup /app
 
 USER appuser
 

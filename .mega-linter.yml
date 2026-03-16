@@ -1,11 +1,41 @@
 APPLY_FIXES: none
 ENABLE_LINTERS:
+  # Existing linters
   - TYPESCRIPT_ES
   - JSON_PRETTIER
   - MARKDOWN_MARKDOWNLINT
   - DOCKERFILE_HADOLINT
   - REPOSITORY_TRIVY
+  # Copy/paste detection
+  - COPYPASTE_JSCPD
+  # Spell checking
+  - SPELL_CSPELL
+  # JSON validation
+  - JSON_V8R
+  # YAML linting
+  - YAML_YAMLLINT
+  # Git commit linting
+  - GIT_GIT_DIFF
+  # Secret detection
+  - REPOSITORY_GITLEAKS
+  # License checking
+  - REPOSITORY_CHECKOV
+
+# Existing config
 TYPESCRIPT_ES_CONFIG_FILE: .eslintrc.json
 MARKDOWN_MARKDOWNLINT_CONFIG_FILE: .markdownlint.json
+
+# jscpd config
+COPYPASTE_JSCPD_CONFIG_FILE: .jscpd.json
+
+# cspell config
+SPELL_CSPELL_CONFIG_FILE: cspell.json
+
+# Gitleaks config
+REPOSITORY_GITLEAKS_CONFIG_FILE: .gitleaks.toml
+
+# Filter paths for linters
+FILTER_REGEX_EXCLUDE: '(node_modules|dist|\.mega-linter-reports|package-lock\.json|\.squad)'
+
 SHOW_ELAPSED_TIME: true
 FILEIO_REPORTER: false

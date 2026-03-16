@@ -12,6 +12,28 @@ permissions:
   pull-requests: write
 
 jobs:
+  typecheck:
+    name: TypeScript Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build shared (declarations needed by server/client)
+        run: npx tsc -p packages/shared/tsconfig.json
+
+      - name: Type check server
+        run: npx tsc --noEmit -p packages/server/tsconfig.json
+
+      - name: Type check client
+        run: npx tsc --noEmit -p packages/client/tsconfig.json
+
   megalinter:
     name: MegaLinter
     runs-on: ubuntu-latest

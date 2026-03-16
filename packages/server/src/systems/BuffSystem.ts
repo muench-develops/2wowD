@@ -126,7 +126,7 @@ export class BuffSystem {
 
     for (const buff of entityBuffs) {
       for (const [stat, multiplier] of Object.entries(buff.def.statModifiers)) {
-        if (multiplier !== undefined && stat in mods) {
+        if (multiplier != null && stat in mods) {
           mods[stat] *= multiplier;
         }
       }
