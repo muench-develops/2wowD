@@ -35,7 +35,7 @@ export class InventoryPanel {
   private container!: Phaser.GameObjects.Container;
   private slots: Phaser.GameObjects.Graphics[] = [];
   private itemIcons: Phaser.GameObjects.Text[] = [];
-  private itemQtys: Phaser.GameObjects.Text[] = [];
+  private itemQuantities: Phaser.GameObjects.Text[] = [];
   private inventory: InventoryItem[] = [];
   private visible = false;
   private tooltip: Phaser.GameObjects.Container | null = null;
@@ -100,7 +100,7 @@ export class InventoryPanel {
           color: '#ffffff',
         }).setOrigin(1, 1);
         this.container.add(qty);
-        this.itemQtys.push(qty);
+        this.itemQuantities.push(qty);
 
         const hitZone = this.scene.add.zone(sx + SLOT_SIZE / 2, sy + SLOT_SIZE / 2, SLOT_SIZE, SLOT_SIZE)
           .setInteractive({ useHandCursor: true })
@@ -127,7 +127,7 @@ export class InventoryPanel {
   private refresh(): void {
     for (let i = 0; i < INVENTORY_SIZE; i++) {
       this.itemIcons[i].setText('');
-      this.itemQtys[i].setText('');
+      this.itemQuantities[i].setText('');
 
       const col = i % COLS;
       const row = Math.floor(i / COLS);
@@ -160,7 +160,7 @@ export class InventoryPanel {
       this.itemIcons[idx].setText(def.icon);
 
       if (item.quantity > 1) {
-        this.itemQtys[idx].setText(`${item.quantity}`);
+        this.itemQuantities[idx].setText(`${item.quantity}`);
       }
     }
   }
