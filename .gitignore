@@ -35,4 +35,9 @@ Thumbs.db
 .squad/sessions/
 # Squad: SubSquad activation file (local to this machine)
 .squad-workstream
+squad/playwright-setup
+
+game.db-shm
+game.db-wal
 playwright-report/
+
