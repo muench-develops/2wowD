@@ -1,0 +1,11 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Global allowlist"
+paths = [
+  '''node_modules''',
+  '''dist''',
+  '''\.mega-linter-reports''',
+  '''package-lock\.json''',
+]

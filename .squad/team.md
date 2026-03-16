@@ -17,6 +17,7 @@
 | Tyrael | Backend Dev | .squad/agents/tyrael/charter.md | 🔧 Active |
 | Lyndon | Tester | .squad/agents/lyndon/charter.md | 🧪 Active |
 | Haedrig | DevOps | .squad/agents/haedrig/charter.md | ⚙️ Active |
+| Kormac | Code Reviewer | .squad/agents/kormac/charter.md | 🔍 Active |
 | Scribe | Session Logger | .squad/agents/scribe/charter.md | 📋 Active |
 | Ralph | Work Monitor | — | 🔄 Active |
 
