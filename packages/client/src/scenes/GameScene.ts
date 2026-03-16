@@ -13,9 +13,6 @@ import {
   PLAYER_SPAWN_X,
   PLAYER_SPAWN_Y,
   TICK_INTERVAL,
-  ISO_TILE_WIDTH,
-  ISO_TILE_HEIGHT,
-  type BuffState,
   type WelcomeMessage,
   type WorldStateMessage,
   type PlayerMovedMessage,
@@ -418,8 +415,12 @@ export class GameScene extends Phaser.Scene {
       this.events.emit('toggleChatPanel');
     });
 
-    this.events.on('deselectTarget', () => {
-      this.selectTarget(null);
+    this.events.on('toggleEscMenu', () => {
+      this.events.emit('toggleGameMenu');
+    });
+
+    this.events.on('menuStateChanged', (open: boolean) => {
+      this.inputSystem.menuOpen = open;
     });
   }
 

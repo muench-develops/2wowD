@@ -6,7 +6,8 @@ import { ChatPanel } from '../ui/ChatPanel';
 import { TargetFrame } from '../ui/TargetFrame';
 import { CastBar } from '../ui/CastBar';
 import { BuffBar } from '../ui/BuffBar';
-import { Minimap } from '../ui/Minimap';
+import { Minimap, type MinimapEntityData } from '../ui/Minimap';
+import { EscMenu } from '../ui/EscMenu';
 import { NetworkManager } from '../network/NetworkManager';
 import { SoundManager } from '../systems/SoundManager';
 
@@ -20,6 +21,7 @@ export class HUDScene extends Phaser.Scene {
   private castBar!: CastBar;
   private buffBar!: BuffBar;
   private minimap!: Minimap;
+  private escMenu!: EscMenu;
   private latencyText!: Phaser.GameObjects.Text;
   private muteIndicator!: Phaser.GameObjects.Text;
   private gameScene!: Phaser.Scene;
@@ -75,6 +77,9 @@ export class HUDScene extends Phaser.Scene {
 
     // Minimap
     this.minimap = new Minimap(this);
+
+    // ESC menu
+    this.escMenu = new EscMenu(this, this.gameScene);
 
     // Latency display
     this.latencyText = this.add.text(1260, 4, '', {
@@ -151,6 +156,10 @@ export class HUDScene extends Phaser.Scene {
       this.minimap.renderMap(mapData);
     });
 
+    this.gameScene.events.on('toggleGameMenu', () => {
+      this.escMenu.toggle();
+    });
+
     this.gameScene.events.on('toggleChatPanel', () => {
       this.chatPanel.toggleFocus();
       const isFocused = this.chatPanel.isFocused;
@@ -159,7 +168,6 @@ export class HUDScene extends Phaser.Scene {
     });
 
     // Chat blur event
-    this.chatPanel; // initialized above
     this.events.on('chatBlurred', () => {
       this.gameScene.events.emit('chatFocusChanged', false);
     });
@@ -172,7 +180,10 @@ export class HUDScene extends Phaser.Scene {
     // Listen for chat focus changes in game scene's input system
     this.gameScene.events.on('chatFocusChanged', (focused: boolean) => {
       // The InputSystem in GameScene will read this
-      (this.gameScene as any).inputSystem?.chatFocused && ((this.gameScene as any).inputSystem.chatFocused = focused);
+      const inputSystem = (this.gameScene as { inputSystem?: { chatFocused?: boolean } }).inputSystem;
+      if (inputSystem && 'chatFocused' in inputSystem) {
+        inputSystem.chatFocused = focused;
+      }
     });
   }
 
@@ -184,7 +195,7 @@ export class HUDScene extends Phaser.Scene {
     this.castBar.update();
 
     // Update minimap entity dots
-    const gs = this.gameScene as any;
+    const gs = this.gameScene as { getMinimapData?: () => MinimapEntityData };
     if (typeof gs.getMinimapData === 'function') {
       this.minimap.updateEntities(gs.getMinimapData());
     }

@@ -5,11 +5,11 @@ A 2D isometric multiplayer online RPG built with TypeScript, Phaser.js, and Node
 ## Screenshots
 
 | Login | Character Select | Create Character |
-|-------|-----------------|------------------|
+| ----- | ---------------- | ---------------- |
 | ![Login Screen](login-screen.png) | ![Character Select](character-select.png) | ![Create Character](create-char.png) |
 
 | Character Created | In-Game |
-|-------------------|---------|
+| ----------------- | ------- |
 | ![Character Created](char-created.png) | ![In-Game](ingame.png) |
 
 ## Features
@@ -27,7 +27,7 @@ A 2D isometric multiplayer online RPG built with TypeScript, Phaser.js, and Node
 ## Tech Stack
 
 | Layer | Technology |
-|-------|-----------|
+| ----- | ---------- |
 | Client | [Phaser.js](https://phaser.io/) + [Vite](https://vitejs.dev/) |
 | Server | Node.js + [ws](https://github.com/websockets/ws) |
 | Shared | TypeScript types & protocol definitions |
@@ -71,7 +71,7 @@ docker-compose up --build
 
 ## Project Structure
 
-```
+```text
 2wowD/
 ├── packages/
 │   ├── shared/      # Shared types, constants, protocol definitions

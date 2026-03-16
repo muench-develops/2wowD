@@ -2,7 +2,6 @@ import Phaser from 'phaser';
 import {
   Vec2,
   normalize,
-  vectorToDirection,
   ClientMessageType,
 } from '@2wowd/shared';
 import { getTileAtScreen } from './IsometricHelper';
@@ -27,6 +26,7 @@ export class InputSystem {
   private moveSeq = 0;
   private lastDir: Vec2 = { x: 0, y: 0 };
   private _chatFocused = false;
+  private _menuOpen = false;
 
   get chatFocused(): boolean {
     return this._chatFocused;
@@ -34,6 +34,14 @@ export class InputSystem {
 
   set chatFocused(v: boolean) {
     this._chatFocused = v;
+  }
+
+  get menuOpen(): boolean {
+    return this._menuOpen;
+  }
+
+  set menuOpen(v: boolean) {
+    this._menuOpen = v;
   }
 
   constructor(scene: Phaser.Scene) {
@@ -60,7 +68,7 @@ export class InputSystem {
 
   /** Returns the current WASD direction vector (may be zero) */
   getMovementDirection(): Vec2 {
-    if (this._chatFocused) return { x: 0, y: 0 };
+    if (this._chatFocused || this._menuOpen) return { x: 0, y: 0 };
 
     let dx = 0;
     let dy = 0;
@@ -75,7 +83,20 @@ export class InputSystem {
 
   /** Call each frame – sends move / stop_move messages */
   update(): void {
-    if (this._chatFocused) return;
+    // ESC toggles game menu regardless of other input state
+    if (Phaser.Input.Keyboard.JustDown(this.keys.ESC)) {
+      // Stop movement before opening menu
+      const wasMoving = this.lastDir.x !== 0 || this.lastDir.y !== 0;
+      if (wasMoving) {
+        this.moveSeq++;
+        this.scene.events.emit('requestStopMove', this.moveSeq);
+        this.lastDir = { x: 0, y: 0 };
+      }
+      this.scene.events.emit('toggleEscMenu');
+      return;
+    }
+
+    if (this._chatFocused || this._menuOpen) return;
 
     const dir = this.getMovementDirection();
     const isMoving = dir.x !== 0 || dir.y !== 0;
@@ -105,11 +126,6 @@ export class InputSystem {
     // Enter to toggle chat
     if (Phaser.Input.Keyboard.JustDown(this.keys.ENTER)) {
       this.scene.events.emit('toggleChat');
-    }
-
-    // Esc to deselect target
-    if (Phaser.Input.Keyboard.JustDown(this.keys.ESC)) {
-      this.scene.events.emit('deselectTarget');
     }
 
     // M to toggle mute
