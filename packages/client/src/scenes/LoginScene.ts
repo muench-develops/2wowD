@@ -186,7 +186,8 @@ export class LoginScene extends Phaser.Scene {
     ];
   }
 
-  private _listeners: Array<{ event: string; cb: (data: unknown) => void }> = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private _listeners: Array<{ event: string; cb: (data: any) => void }> = [];
 
   private cleanupListeners(): void {
     for (const { event, cb } of this._listeners) {

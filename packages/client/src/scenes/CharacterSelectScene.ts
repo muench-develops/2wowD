@@ -33,7 +33,8 @@ export class CharacterSelectScene extends Phaser.Scene {
   private net!: NetworkManager;
   private accountId = '';
   private characters: CharacterSummary[] = [];
-  private _listeners: Array<{ event: string; cb: (data: unknown) => void }> = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private _listeners: Array<{ event: string; cb: (data: any) => void }> = [];
 
   // UI containers
   private slotsContainer!: Phaser.GameObjects.Container;

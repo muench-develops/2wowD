@@ -6,7 +6,7 @@ import { ChatPanel } from '../ui/ChatPanel';
 import { TargetFrame } from '../ui/TargetFrame';
 import { CastBar } from '../ui/CastBar';
 import { BuffBar } from '../ui/BuffBar';
-import { Minimap } from '../ui/Minimap';
+import { Minimap, type MinimapEntityData } from '../ui/Minimap';
 import { EscMenu } from '../ui/EscMenu';
 import { NetworkManager } from '../network/NetworkManager';
 import { SoundManager } from '../systems/SoundManager';
@@ -195,7 +195,7 @@ export class HUDScene extends Phaser.Scene {
     this.castBar.update();
 
     // Update minimap entity dots
-    const gs = this.gameScene as { getMinimapData?: () => unknown };
+    const gs = this.gameScene as { getMinimapData?: () => MinimapEntityData };
     if (typeof gs.getMinimapData === 'function') {
       this.minimap.updateEntities(gs.getMinimapData());
     }
