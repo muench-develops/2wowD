@@ -1,0 +1,34 @@
+# Build stage
+FROM node:20-alpine AS build
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+COPY packages/shared/package.json packages/shared/
+COPY packages/server/package.json packages/server/
+
+RUN npm ci --workspace=packages/shared --workspace=packages/server --include-workspace-root
+
+COPY tsconfig.base.json ./
+COPY packages/shared/ packages/shared/
+COPY packages/server/ packages/server/
+
+RUN npm run build -w packages/shared && npm run build -w packages/server
+
+# Run stage
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY --from=build /app/package.json /app/package-lock.json ./
+COPY --from=build /app/packages/shared/package.json packages/shared/
+COPY --from=build /app/packages/server/package.json packages/server/
+
+RUN npm ci --workspace=packages/shared --workspace=packages/server --include-workspace-root --omit=dev
+
+COPY --from=build /app/packages/shared/dist packages/shared/dist/
+COPY --from=build /app/packages/server/dist packages/server/dist/
+
+EXPOSE 8080
+
+CMD ["node", "packages/server/dist/main.js"]
