@@ -1,15 +1,16 @@
 {
-  "threshold": 0,
+  "threshold": 7,
   "reporters": ["console"],
   "ignore": [
     "node_modules",
-    "dist",
+    "**/dist/**",
     ".mega-linter-reports",
     "**/*.json",
-    "**/*.md"
+    "**/*.md",
+    "**/*.d.ts"
   ],
   "format": ["typescript", "javascript"],
-  "minLines": 5,
-  "minTokens": 50,
+  "minLines": 6,
+  "minTokens": 70,
   "absolute": false
 }

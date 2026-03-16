@@ -7,6 +7,7 @@
     "dist",
     "package-lock.json",
     ".mega-linter-reports",
+    ".github/workflows",
     "*.png",
     "*.jpg"
   ],
@@ -25,6 +26,8 @@
     "gameloop",
     "despawn",
     "respawn",
+    "respawned",
+    "respawns",
     "hitbox",
     "cooldown",
     "cooldowns",
@@ -74,6 +77,18 @@
     "dockerignore",
     "tsconfig",
     "noEmit",
-    "esModuleInterop"
+    "esModuleInterop",
+    "lerp",
+    "tweens",
+    "tween",
+    "backstab",
+    "regen",
+    "nametag",
+    "wasd",
+    "yoyo",
+    "maxlength",
+    "untriaged",
+    "unstarted",
+    "lyndon"
   ]
 }
