@@ -10,6 +10,7 @@ import { Minimap, type MinimapEntityData } from '../ui/Minimap';
 import { EscMenu } from '../ui/EscMenu';
 import { InventoryPanel } from '../ui/InventoryPanel';
 import { LootWindow } from '../ui/LootWindow';
+import { GuideSystem } from '../ui/GuideSystem.js';
 import { NetworkManager } from '../network/NetworkManager';
 import { SoundManager } from '../systems/SoundManager';
 
@@ -28,6 +29,8 @@ export class HUDScene extends Phaser.Scene {
   private lootWindow!: LootWindow;
   private latencyText!: Phaser.GameObjects.Text;
   private muteIndicator!: Phaser.GameObjects.Text;
+  private guideSystem!: GuideSystem;
+  private helpButton!: Phaser.GameObjects.Text;
   private gameScene!: Phaser.Scene;
 
   constructor() {
@@ -180,6 +183,21 @@ export class HUDScene extends Phaser.Scene {
     // Chat blur event
     this.events.on('chatBlurred', () => {
       this.gameScene.events.emit('chatFocusChanged', false);
+    });
+
+    // Guide system
+    this.guideSystem = new GuideSystem(this, this.gameScene);
+
+    // Help button (? icon top-right)
+    this.helpButton = this.add.text(1260, 16, '❓', {
+      fontSize: '20px',
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true })
+      .setDepth(800)
+      .on('pointerdown', () => this.guideSystem.showCurrentTip());
+
+    // Start tutorial on first game entry
+    this.gameScene.events.on('gameReady', () => {
+      this.guideSystem.start();
     });
 
     // Listen for mute toggle from GameScene (M key)

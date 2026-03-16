@@ -160,6 +160,9 @@ export class GameScene extends Phaser.Scene {
 
     this.events.emit('updatePlayerHealth', msg.player.health, msg.player.maxHealth);
     this.events.emit('updatePlayerMana', msg.player.mana, msg.player.maxMana);
+
+    // Signal game is ready for tutorial
+    this.events.emit('gameReady');
   }
 
   private registerNetworkHandlers(): void {
@@ -443,6 +446,7 @@ export class GameScene extends Phaser.Scene {
           targetId: this.selectedTargetId,
           targetPosition: null,
         });
+        this.events.emit('abilityUsed');
       }
     });
 
@@ -468,6 +472,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     if (id) {
+      this.events.emit('targetSelected');
       const pe = this.players.get(id);
       if (pe) {
         this.events.emit('showTarget', pe.nameTag.text, 0, 0);
