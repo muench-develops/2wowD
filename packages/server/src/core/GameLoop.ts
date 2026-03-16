@@ -9,6 +9,7 @@ import { MobAISystem } from '../systems/MobAISystem.js';
 import { SpawnSystem } from '../systems/SpawnSystem.js';
 import { BuffSystem } from '../systems/BuffSystem.js';
 import { NetworkManager } from '../network/NetworkManager.js';
+import { LootSystem } from '../systems/LootSystem.js';
 
 export class GameLoop {
   private world: World;
@@ -17,6 +18,7 @@ export class GameLoop {
   private mobAISystem: MobAISystem;
   private spawnSystem: SpawnSystem;
   private buffSystem: BuffSystem;
+  private lootSystem: LootSystem;
   private network: NetworkManager;
 
   private intervalId: ReturnType<typeof setInterval> | null = null;
@@ -30,6 +32,7 @@ export class GameLoop {
     mobAISystem: MobAISystem,
     spawnSystem: SpawnSystem,
     buffSystem: BuffSystem,
+    lootSystem: LootSystem,
     network: NetworkManager,
   ) {
     this.world = world;
@@ -38,6 +41,7 @@ export class GameLoop {
     this.mobAISystem = mobAISystem;
     this.spawnSystem = spawnSystem;
     this.buffSystem = buffSystem;
+    this.lootSystem = lootSystem;
     this.network = network;
   }
 
@@ -113,7 +117,10 @@ export class GameLoop {
     // 6. Spawn system (mob respawns)
     this.spawnSystem.update(this.world, deltaMs);
 
-    // 7. Broadcast world state
+    // 7. Loot system (expire old loot)
+    this.lootSystem.update(this.world, deltaMs);
+
+    // 8. Broadcast world state
     this.broadcastWorldState();
   }
 

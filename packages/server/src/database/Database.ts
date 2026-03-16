@@ -1,5 +1,5 @@
 import BetterSqlite3 from 'better-sqlite3';
-import { generateId } from '@isoheim/shared';
+import { InventoryItem, generateId } from '@isoheim/shared';
 
 export interface CharacterRow {
   id: string;
@@ -57,6 +57,14 @@ export class Database {
         mana REAL NOT NULL DEFAULT -1,
         created_at INTEGER NOT NULL,
         last_played INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS inventory (
+        character_id TEXT NOT NULL,
+        slot INTEGER NOT NULL,
+        item_id TEXT NOT NULL,
+        quantity INTEGER NOT NULL DEFAULT 1,
+        PRIMARY KEY (character_id, slot)
       );
     `);
   }
@@ -135,6 +143,29 @@ export class Database {
       .prepare('SELECT COUNT(*) AS cnt FROM characters WHERE account_id = ?')
       .get(accountId) as { cnt: number };
     return row.cnt;
+  }
+
+  // ── Inventory methods ─────────────────────────────────────
+
+  saveInventory(characterId: string, inventory: InventoryItem[]): void {
+    const deleteAll = this.db.prepare('DELETE FROM inventory WHERE character_id = ?');
+    const insert = this.db.prepare(
+      'INSERT INTO inventory (character_id, slot, item_id, quantity) VALUES (?, ?, ?, ?)',
+    );
+    const saveAll = this.db.transaction(() => {
+      deleteAll.run(characterId);
+      for (const item of inventory) {
+        insert.run(characterId, item.slot, item.itemId, item.quantity);
+      }
+    });
+    saveAll();
+  }
+
+  loadInventory(characterId: string): InventoryItem[] {
+    const rows = this.db
+      .prepare('SELECT item_id, quantity, slot FROM inventory WHERE character_id = ? ORDER BY slot')
+      .all(characterId) as { item_id: string; quantity: number; slot: number }[];
+    return rows.map(r => ({ itemId: r.item_id, quantity: r.quantity, slot: r.slot }));
   }
 
   close(): void {

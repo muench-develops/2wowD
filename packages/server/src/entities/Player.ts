@@ -11,6 +11,7 @@ import {
   DamageEvent,
   BuffState,
   CharacterInfo,
+  InventoryItem,
   CLASS_STATS,
   CLASS_ABILITIES,
   PLAYER_SPAWN_X,
@@ -20,6 +21,8 @@ import {
   MANA_REGEN_RATE,
   LEVEL_CAP,
   LEVEL_STAT_SCALING,
+  INVENTORY_SIZE,
+  ITEM_DATABASE,
   xpForLevel,
   generateId,
   distance,
@@ -57,6 +60,9 @@ export class Player {
 
   // Respawn
   respawnTimer: number = 0;
+
+  // Inventory
+  inventory: InventoryItem[] = [];
 
   constructor(id: string, name: string, classType: ClassType) {
     this.id = id;
@@ -323,5 +329,74 @@ export class Player {
       targetId: this.targetId,
       buffs: buffSystem ? buffSystem.getBuffStates(this.id) : [],
     };
+  }
+
+  // ── Inventory ────────────────────────────────────────────
+
+  addToInventory(itemId: string, quantity: number): boolean {
+    const itemDef = ITEM_DATABASE[itemId];
+    if (!itemDef) return false;
+
+    // Try to stack with existing item
+    if (itemDef.stackable) {
+      const existing = this.inventory.find(i => i.itemId === itemId && i.quantity < itemDef.maxStack);
+      if (existing) {
+        const canAdd = Math.min(quantity, itemDef.maxStack - existing.quantity);
+        existing.quantity += canAdd;
+        quantity -= canAdd;
+        if (quantity <= 0) return true;
+      }
+    }
+
+    // Find empty slot(s)
+    const usedSlots = new Set(this.inventory.map(i => i.slot));
+    for (let slot = 0; slot < INVENTORY_SIZE; slot++) {
+      if (!usedSlots.has(slot)) {
+        const addQty = itemDef.stackable ? Math.min(quantity, itemDef.maxStack) : 1;
+        this.inventory.push({ itemId, quantity: addQty, slot });
+        quantity -= addQty;
+        if (quantity <= 0) return true;
+      }
+    }
+
+    return quantity <= 0;
+  }
+
+  removeFromInventory(slot: number, quantity: number = 1): InventoryItem | null {
+    const idx = this.inventory.findIndex(i => i.slot === slot);
+    if (idx === -1) return null;
+
+    const item = this.inventory[idx];
+    if (quantity >= item.quantity) {
+      this.inventory.splice(idx, 1);
+      return item;
+    }
+
+    item.quantity -= quantity;
+    return { ...item, quantity };
+  }
+
+  moveInventoryItem(fromSlot: number, toSlot: number): boolean {
+    if (fromSlot === toSlot) return false;
+    if (toSlot < 0 || toSlot >= INVENTORY_SIZE) return false;
+
+    const fromIdx = this.inventory.findIndex(i => i.slot === fromSlot);
+    if (fromIdx === -1) return false;
+
+    const toIdx = this.inventory.findIndex(i => i.slot === toSlot);
+
+    if (toIdx === -1) {
+      this.inventory[fromIdx].slot = toSlot;
+    } else {
+      // Swap slots
+      this.inventory[fromIdx].slot = toSlot;
+      this.inventory[toIdx].slot = fromSlot;
+    }
+
+    return true;
+  }
+
+  isInventoryFull(): boolean {
+    return this.inventory.length >= INVENTORY_SIZE;
   }
 }

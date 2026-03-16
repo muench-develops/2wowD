@@ -22,6 +22,15 @@ export {
   type SpawnPoint,
   type CharacterSummary,
   type CharacterInfo,
+  // Item System
+  ItemType,
+  ItemRarity,
+  type ItemDef,
+  type ItemStats,
+  type ItemUseEffect,
+  type InventoryItem,
+  type LootItem,
+  type WorldLoot,
 } from './types.js';
 
 // Constants
@@ -69,6 +78,14 @@ export {
   type LevelStatScaling,
   BUFF_DEFINITIONS,
   ABILITY_BUFF_MAP,
+  // Item System
+  INVENTORY_SIZE,
+  LOOT_EXPIRY_MS,
+  LOOT_KILLER_ONLY_MS,
+  LOOT_PICKUP_RANGE,
+  ITEM_DATABASE,
+  type LootTableEntry,
+  MOB_LOOT_TABLES,
 } from './constants.js';
 
 // Protocol
@@ -116,6 +133,16 @@ export {
   type PongMessage,
   type ErrorMessage,
   type ServerMessage,
+  // Item System – Client
+  type PickupItemMessage,
+  type DropItemMessage,
+  type MoveItemMessage,
+  type UseItemMessage,
+  // Item System – Server
+  type InventoryUpdateMessage,
+  type LootSpawnedMessage,
+  type LootDespawnedMessage,
+  type LootPickedUpMessage,
 } from './protocol.js';
 
 // Utils

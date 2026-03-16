@@ -11,6 +11,8 @@ import {
   MapData,
   BuffState,
   CharacterSummary,
+  InventoryItem,
+  WorldLoot,
 } from './types.js';
 
 // ============================================================
@@ -34,6 +36,11 @@ export enum ClientMessageType {
   SelectTarget = 'select_target',
   Chat = 'chat',
   Ping = 'ping',
+  // Items & Inventory
+  PickupItem = 'pickupItem',
+  DropItem = 'dropItem',
+  MoveItem = 'moveItem',
+  UseItem = 'useItem',
 }
 
 // --- Auth Messages (Client → Server) ---
@@ -118,6 +125,30 @@ export interface PingMessage {
   timestamp: number;
 }
 
+// --- Item Messages (Client → Server) ---
+
+export interface PickupItemMessage {
+  type: ClientMessageType.PickupItem;
+  lootId: string;
+  itemIndex: number;
+}
+
+export interface DropItemMessage {
+  type: ClientMessageType.DropItem;
+  slot: number;
+}
+
+export interface MoveItemMessage {
+  type: ClientMessageType.MoveItem;
+  fromSlot: number;
+  toSlot: number;
+}
+
+export interface UseItemMessage {
+  type: ClientMessageType.UseItem;
+  slot: number;
+}
+
 export type ClientMessage =
   | RegisterMessage
   | LoginMessage
@@ -132,7 +163,11 @@ export type ClientMessage =
   | UseAbilityMessage
   | SelectTargetMessage
   | ChatClientMessage
-  | PingMessage;
+  | PingMessage
+  | PickupItemMessage
+  | DropItemMessage
+  | MoveItemMessage
+  | UseItemMessage;
 
 // ============================================================
 // Server → Client Messages
@@ -166,6 +201,11 @@ export enum ServerMessageType {
   LevelUp = 'level_up',
   Pong = 'pong',
   Error = 'error',
+  // Items & Inventory
+  InventoryUpdate = 'inventoryUpdate',
+  LootSpawned = 'lootSpawned',
+  LootDespawned = 'lootDespawned',
+  LootPickedUp = 'lootPickedUp',
 }
 
 // --- Auth Messages (Server → Client) ---
@@ -315,6 +355,30 @@ export interface ErrorMessage {
   message: string;
 }
 
+// --- Item Messages (Server → Client) ---
+
+export interface InventoryUpdateMessage {
+  type: ServerMessageType.InventoryUpdate;
+  inventory: InventoryItem[];
+}
+
+export interface LootSpawnedMessage {
+  type: ServerMessageType.LootSpawned;
+  loot: WorldLoot;
+}
+
+export interface LootDespawnedMessage {
+  type: ServerMessageType.LootDespawned;
+  lootId: string;
+}
+
+export interface LootPickedUpMessage {
+  type: ServerMessageType.LootPickedUp;
+  lootId: string;
+  itemIndex: number;
+  playerId: string;
+}
+
 export type ServerMessage =
   | RegisterSuccessMessage
   | RegisterFailedMessage
@@ -340,4 +404,8 @@ export type ServerMessage =
   | LevelUpMessage
   | MapDataMessage
   | PongMessage
-  | ErrorMessage;
+  | ErrorMessage
+  | InventoryUpdateMessage
+  | LootSpawnedMessage
+  | LootDespawnedMessage
+  | LootPickedUpMessage;

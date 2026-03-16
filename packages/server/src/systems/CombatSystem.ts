@@ -18,15 +18,21 @@ import { Mob } from '../entities/Mob.js';
 import { World } from '../core/World.js';
 import { NetworkManager } from '../network/NetworkManager.js';
 import { BuffSystem } from './BuffSystem.js';
+import { LootSystem } from './LootSystem.js';
 import { ServerMessageType } from '@isoheim/shared';
 
 export class CombatSystem {
   private network: NetworkManager;
   private buffSystem: BuffSystem;
+  private lootSystem: LootSystem | null = null;
 
   constructor(network: NetworkManager, buffSystem: BuffSystem) {
     this.network = network;
     this.buffSystem = buffSystem;
+  }
+
+  setLootSystem(lootSystem: LootSystem): void {
+    this.lootSystem = lootSystem;
   }
 
   update(world: World, deltaMs: number, now: number): void {
@@ -108,6 +114,7 @@ export class CombatSystem {
             killerName: player.name,
           });
           this.awardXp(player, mob);
+          this.lootSystem?.createLootFromMob(mob, world, player.id);
         }
       }
       return;
@@ -296,6 +303,7 @@ export class CombatSystem {
         killerName: player.name,
       });
       this.awardXp(player, mob);
+      this.lootSystem?.createLootFromMob(mob, world, player.id);
     }
   }
 
@@ -351,6 +359,7 @@ export class CombatSystem {
           killerName: player.name,
         });
         this.awardXp(player, mob);
+        this.lootSystem?.createLootFromMob(mob, world, player.id);
       }
     }
   }

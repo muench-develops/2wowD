@@ -27,6 +27,11 @@ import {
   type ChatReceivedMessage,
   type LevelUpMessage,
   type MapDataMessage,
+  type InventoryUpdateMessage,
+  type LootSpawnedMessage,
+  type LootDespawnedMessage,
+  type LootPickedUpMessage,
+  type WorldLoot,
 } from '@isoheim/shared';
 import { NetworkManager } from '../network/NetworkManager';
 import { InputSystem } from '../systems/InputSystem';
@@ -53,6 +58,9 @@ export class GameScene extends Phaser.Scene {
   private mobs = new Map<string, MobEntity>();
 
   private selectedTargetId: string | null = null;
+
+  private worldLoots = new Map<string, WorldLoot>();
+  private lootSprites = new Map<string, Phaser.GameObjects.Container>();
 
   // Client-side prediction
   private localWorldX = PLAYER_SPAWN_X;
@@ -152,6 +160,9 @@ export class GameScene extends Phaser.Scene {
 
     this.events.emit('updatePlayerHealth', msg.player.health, msg.player.maxHealth);
     this.events.emit('updatePlayerMana', msg.player.mana, msg.player.maxMana);
+
+    // Signal game is ready for tutorial
+    this.events.emit('gameReady');
   }
 
   private registerNetworkHandlers(): void {
@@ -388,6 +399,33 @@ export class GameScene extends Phaser.Scene {
     this.net.on(ServerMessageType.Error, (msg: { message: string }) => {
       console.error('[Server Error]', msg.message);
     });
+
+    this.net.on(ServerMessageType.InventoryUpdate, (msg: InventoryUpdateMessage) => {
+      this.events.emit('inventoryUpdated', msg.inventory);
+    });
+
+    this.net.on(ServerMessageType.LootSpawned, (msg: LootSpawnedMessage) => {
+      this.worldLoots.set(msg.loot.id, msg.loot);
+      this.createLootSprite(msg.loot);
+    });
+
+    this.net.on(ServerMessageType.LootDespawned, (msg: LootDespawnedMessage) => {
+      this.worldLoots.delete(msg.lootId);
+      this.removeLootSprite(msg.lootId);
+      this.events.emit('lootDespawned', msg.lootId);
+    });
+
+    this.net.on(ServerMessageType.LootPickedUp, (msg: LootPickedUpMessage) => {
+      const loot = this.worldLoots.get(msg.lootId);
+      if (loot) {
+        this.events.emit('lootItemRemoved', msg.lootId, msg.itemIndex);
+        loot.items.splice(msg.itemIndex, 1);
+        if (loot.items.length === 0) {
+          this.worldLoots.delete(msg.lootId);
+          this.removeLootSprite(msg.lootId);
+        }
+      }
+    });
   }
 
   private registerInputHandlers(): void {
@@ -408,6 +446,7 @@ export class GameScene extends Phaser.Scene {
           targetId: this.selectedTargetId,
           targetPosition: null,
         });
+        this.events.emit('abilityUsed');
       }
     });
 
@@ -433,6 +472,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     if (id) {
+      this.events.emit('targetSelected');
       const pe = this.players.get(id);
       if (pe) {
         this.events.emit('showTarget', pe.nameTag.text, 0, 0);
@@ -506,6 +546,49 @@ export class GameScene extends Phaser.Scene {
   private createMob(state: MobState): void {
     const me = new MobEntity(this, state);
     this.mobs.set(state.id, me);
+  }
+
+  private createLootSprite(loot: WorldLoot): void {
+    const screenPos = worldToScreen(loot.position.x, loot.position.y);
+
+    const container = this.add.container(screenPos.x, screenPos.y);
+
+    const gfx = this.add.graphics();
+    gfx.fillStyle(0xe0c070, 0.6);
+    gfx.fillCircle(0, 0, 12);
+    gfx.lineStyle(2, 0xffd700, 0.8);
+    gfx.strokeCircle(0, 0, 12);
+    container.add(gfx);
+
+    const icon = this.add.text(0, 0, '💰', { fontSize: '16px' }).setOrigin(0.5);
+    container.add(icon);
+
+    this.tweens.add({
+      targets: container,
+      scaleX: 1.15,
+      scaleY: 1.15,
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+
+    const hitZone = this.add.zone(0, 0, 32, 32).setInteractive({ useHandCursor: true });
+    hitZone.on('pointerdown', () => {
+      this.events.emit('showLoot', loot);
+    });
+    container.add(hitZone);
+
+    container.setDepth(5);
+    this.lootSprites.set(loot.id, container);
+  }
+
+  private removeLootSprite(lootId: string): void {
+    const sprite = this.lootSprites.get(lootId);
+    if (sprite) {
+      sprite.destroy();
+      this.lootSprites.delete(lootId);
+    }
   }
 
   update(_time: number, delta: number): void {

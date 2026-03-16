@@ -222,3 +222,77 @@ export interface CharacterInfo {
   createdAt: number;
   lastPlayed: number;
 }
+
+// ============================================================
+// Item System
+// ============================================================
+
+export enum ItemType {
+  Weapon = 'weapon',
+  ArmorHead = 'armor_head',
+  ArmorChest = 'armor_chest',
+  ArmorLegs = 'armor_legs',
+  ArmorBoots = 'armor_boots',
+  Ring = 'ring',
+  Consumable = 'consumable',
+  QuestItem = 'quest_item',
+  Misc = 'misc',
+}
+
+export enum ItemRarity {
+  Common = 'common',
+  Uncommon = 'uncommon',
+  Rare = 'rare',
+  Epic = 'epic',
+}
+
+export interface ItemDef {
+  id: string;
+  name: string;
+  description: string;
+  type: ItemType;
+  rarity: ItemRarity;
+  stackable: boolean;
+  maxStack: number;
+  levelReq: number;
+  classReq: ClassType[];
+  stats: ItemStats;
+  useEffect?: ItemUseEffect;
+  sellValue: number;
+  icon: string;
+}
+
+export interface ItemStats {
+  attack?: number;
+  defense?: number;
+  health?: number;
+  mana?: number;
+  speed?: number;
+  critChance?: number;
+}
+
+export interface ItemUseEffect {
+  type: 'heal' | 'mana' | 'teleport' | 'buff';
+  value: number;
+  duration?: number;
+}
+
+export interface InventoryItem {
+  itemId: string;
+  quantity: number;
+  slot: number;
+}
+
+export interface LootItem {
+  itemId: string;
+  quantity: number;
+}
+
+export interface WorldLoot {
+  id: string;
+  position: Vec2;
+  items: LootItem[];
+  killerId: string;
+  killerOnlyUntil: number;
+  expiresAt: number;
+}

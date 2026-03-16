@@ -22,6 +22,9 @@ export class InputSystem {
     ENTER: Phaser.Input.Keyboard.Key;
     ESC: Phaser.Input.Keyboard.Key;
     M: Phaser.Input.Keyboard.Key;
+    B: Phaser.Input.Keyboard.Key;
+    C: Phaser.Input.Keyboard.Key;
+    I: Phaser.Input.Keyboard.Key;
   };
   private moveSeq = 0;
   private lastDir: Vec2 = { x: 0, y: 0 };
@@ -60,9 +63,12 @@ export class InputSystem {
       TWO: kb.addKey(Phaser.Input.Keyboard.KeyCodes.TWO, false),
       THREE: kb.addKey(Phaser.Input.Keyboard.KeyCodes.THREE, false),
       FOUR: kb.addKey(Phaser.Input.Keyboard.KeyCodes.FOUR, false),
+      B: kb.addKey(Phaser.Input.Keyboard.KeyCodes.B, false),
+      C: kb.addKey(Phaser.Input.Keyboard.KeyCodes.C, false),
       ENTER: kb.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER, false),
       ESC: kb.addKey(Phaser.Input.Keyboard.KeyCodes.ESC, false),
       M: kb.addKey(Phaser.Input.Keyboard.KeyCodes.M, false),
+      I: kb.addKey(Phaser.Input.Keyboard.KeyCodes.I, false),
     };
   }
 
@@ -123,9 +129,19 @@ export class InputSystem {
     if (Phaser.Input.Keyboard.JustDown(this.keys.THREE)) this.scene.events.emit('abilityKey', 2);
     if (Phaser.Input.Keyboard.JustDown(this.keys.FOUR)) this.scene.events.emit('abilityKey', 3);
 
+    // C to toggle character panel
+    if (Phaser.Input.Keyboard.JustDown(this.keys.C)) {
+      this.scene.events.emit('toggleCharacter');
+    }
+
     // Enter to toggle chat
     if (Phaser.Input.Keyboard.JustDown(this.keys.ENTER)) {
       this.scene.events.emit('toggleChat');
+    }
+
+    // B or I to toggle inventory
+    if (Phaser.Input.Keyboard.JustDown(this.keys.B) || Phaser.Input.Keyboard.JustDown(this.keys.I)) {
+      this.scene.events.emit('toggleInventory');
     }
 
     // M to toggle mute

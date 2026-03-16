@@ -1,6 +1,7 @@
 import {
   MapData,
   Vec2,
+  WorldLoot,
   distance,
 } from '@isoheim/shared';
 import { Player } from '../entities/Player.js';
@@ -9,6 +10,7 @@ import { Mob } from '../entities/Mob.js';
 export class World {
   readonly players: Map<string, Player> = new Map();
   readonly mobs: Map<string, Mob> = new Map();
+  readonly loots: Map<string, WorldLoot> = new Map();
   mapData: MapData;
 
   constructor(mapData: MapData) {
@@ -48,6 +50,14 @@ export class World {
 
   removeMob(mobId: string): void {
     this.mobs.delete(mobId);
+  }
+
+  addLoot(loot: WorldLoot): void {
+    this.loots.set(loot.id, loot);
+  }
+
+  removeLoot(id: string): void {
+    this.loots.delete(id);
   }
 
   getPlayersNear(pos: Vec2, range: number): Player[] {

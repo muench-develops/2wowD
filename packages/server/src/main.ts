@@ -8,6 +8,7 @@ import { BuffSystem } from './systems/BuffSystem.js';
 import { MobAISystem } from './systems/MobAISystem.js';
 import { SpawnSystem } from './systems/SpawnSystem.js';
 import { ChatSystem } from './systems/ChatSystem.js';
+import { LootSystem } from './systems/LootSystem.js';
 import { generateStarterMap } from './maps/StarterMap.js';
 import { Database } from './database/Database.js';
 import { AuthManager } from './auth/AuthManager.js';
@@ -39,6 +40,10 @@ function main(): void {
   const mobAISystem = new MobAISystem(network, buffSystem);
   const spawnSystem = new SpawnSystem(network);
   const chatSystem = new ChatSystem(network);
+  const lootSystem = new LootSystem(network);
+
+  // Wire loot into combat
+  combatSystem.setLootSystem(lootSystem);
 
   // Create message handler
   const messageHandler = new MessageHandler(
@@ -47,6 +52,7 @@ function main(): void {
     movementSystem,
     combatSystem,
     chatSystem,
+    lootSystem,
     authManager,
     db,
   );
@@ -59,6 +65,7 @@ function main(): void {
     mobAISystem,
     spawnSystem,
     buffSystem,
+    lootSystem,
     network,
   );
 
