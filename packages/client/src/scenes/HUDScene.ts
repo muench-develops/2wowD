@@ -7,6 +7,7 @@ import { TargetFrame } from '../ui/TargetFrame';
 import { CastBar } from '../ui/CastBar';
 import { BuffBar } from '../ui/BuffBar';
 import { Minimap } from '../ui/Minimap';
+import { EscMenu } from '../ui/EscMenu';
 import { NetworkManager } from '../network/NetworkManager';
 import { SoundManager } from '../systems/SoundManager';
 
@@ -20,6 +21,7 @@ export class HUDScene extends Phaser.Scene {
   private castBar!: CastBar;
   private buffBar!: BuffBar;
   private minimap!: Minimap;
+  private escMenu!: EscMenu;
   private latencyText!: Phaser.GameObjects.Text;
   private muteIndicator!: Phaser.GameObjects.Text;
   private gameScene!: Phaser.Scene;
@@ -75,6 +77,9 @@ export class HUDScene extends Phaser.Scene {
 
     // Minimap
     this.minimap = new Minimap(this);
+
+    // ESC menu
+    this.escMenu = new EscMenu(this, this.gameScene);
 
     // Latency display
     this.latencyText = this.add.text(1260, 4, '', {
@@ -149,6 +154,10 @@ export class HUDScene extends Phaser.Scene {
 
     this.gameScene.events.on('mapLoaded', (mapData: MapData) => {
       this.minimap.renderMap(mapData);
+    });
+
+    this.gameScene.events.on('toggleGameMenu', () => {
+      this.escMenu.toggle();
     });
 
     this.gameScene.events.on('toggleChatPanel', () => {

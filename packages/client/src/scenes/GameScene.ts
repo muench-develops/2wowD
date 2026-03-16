@@ -418,8 +418,12 @@ export class GameScene extends Phaser.Scene {
       this.events.emit('toggleChatPanel');
     });
 
-    this.events.on('deselectTarget', () => {
-      this.selectTarget(null);
+    this.events.on('toggleEscMenu', () => {
+      this.events.emit('toggleGameMenu');
+    });
+
+    this.events.on('menuStateChanged', (open: boolean) => {
+      this.inputSystem.menuOpen = open;
     });
   }
 
