@@ -7,7 +7,7 @@ import {
   type LoginSuccessMessage,
   type LoginFailedMessage,
   type RegisterFailedMessage,
-} from '@2wowd/shared';
+} from '@isoheim/shared';
 import { NetworkManager } from '../network/NetworkManager';
 
 export class LoginScene extends Phaser.Scene {
@@ -32,7 +32,7 @@ export class LoginScene extends Phaser.Scene {
     const formHtml = `
       <div style="background: rgba(20,20,40,0.95); padding: 40px; border-radius: 12px; border: 1px solid #444466; width: 320px; font-family: monospace;">
         <div style="text-align:center; margin-bottom:20px;">
-          <div style="font-size:36px; color:#ffcc44; font-weight:bold;">2wowD</div>
+          <div style="font-size:36px; color:#ffcc44; font-weight:bold;">Isoheim</div>
           <div style="font-size:12px; color:#8888aa;">Enter the World</div>
         </div>
         <div style="margin-bottom:12px;">

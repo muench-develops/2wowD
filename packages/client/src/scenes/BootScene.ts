@@ -5,7 +5,7 @@ import {
   MobType,
   ISO_TILE_WIDTH,
   ISO_TILE_HEIGHT,
-} from '@2wowd/shared';
+} from '@isoheim/shared';
 
 export class BootScene extends Phaser.Scene {
   constructor() {

@@ -7,7 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   resolve: {
     alias: {
-      '@2wowd/shared': path.resolve(__dirname, '../shared/src'),
+      '@isoheim/shared': path.resolve(__dirname, '../shared/src'),
     },
   },
   server: {

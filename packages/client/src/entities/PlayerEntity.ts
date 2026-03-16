@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { PlayerState, BuffState, worldToScreen, lerp } from '@2wowd/shared';
+import { PlayerState, BuffState, worldToScreen, lerp } from '@isoheim/shared';
 import { getDepthForPosition } from '../systems/IsometricHelper';
 
 export class PlayerEntity {

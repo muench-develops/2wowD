@@ -1,5 +1,5 @@
 import BetterSqlite3 from 'better-sqlite3';
-import { generateId } from '@2wowd/shared';
+import { generateId } from '@isoheim/shared';
 
 export interface CharacterRow {
   id: string;

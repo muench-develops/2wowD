@@ -4,7 +4,7 @@ import {
   MAP_HEIGHT,
   normalize,
   vectorToDirection,
-} from '@2wowd/shared';
+} from '@isoheim/shared';
 import { Player } from '../entities/Player.js';
 import { World } from '../core/World.js';
 

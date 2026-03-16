@@ -3,7 +3,7 @@ import {
   Vec2,
   normalize,
   ClientMessageType,
-} from '@2wowd/shared';
+} from '@isoheim/shared';
 import { getTileAtScreen } from './IsometricHelper';
 import { NetworkManager } from '../network/NetworkManager';
 import { SoundManager } from './SoundManager';

@@ -4,7 +4,7 @@ import {
   ServerMessageType,
   ChatChannel,
   ClassType,
-} from '@2wowd/shared';
+} from '@isoheim/shared';
 import { Player } from '../entities/Player.js';
 import { World } from '../core/World.js';
 import { NetworkManager } from './NetworkManager.js';

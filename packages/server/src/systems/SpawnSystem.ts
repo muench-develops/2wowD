@@ -1,4 +1,4 @@
-import { MobType, ServerMessageType } from '@2wowd/shared';
+import { MobType, ServerMessageType } from '@isoheim/shared';
 import { Mob } from '../entities/Mob.js';
 import { World } from '../core/World.js';
 import { NetworkManager } from '../network/NetworkManager.js';

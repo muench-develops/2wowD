@@ -1,5 +1,5 @@
 {
-  "name": "@2wowd/server",
+  "name": "@isoheim/server",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     "start": "node dist/main.js"
   },
   "dependencies": {
-    "@2wowd/shared": "*",
+    "@isoheim/shared": "*",
     "better-sqlite3": "^12.8.0",
     "ws": "^8.18.0"
   },

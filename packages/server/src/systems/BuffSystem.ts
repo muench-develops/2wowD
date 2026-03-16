@@ -4,7 +4,7 @@ import {
   DamageEvent,
   ServerMessageType,
   generateId,
-} from '@2wowd/shared';
+} from '@isoheim/shared';
 import { NetworkManager } from '../network/NetworkManager.js';
 
 interface ActiveBuff {

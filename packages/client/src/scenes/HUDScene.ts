@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { type AbilityDef, type CooldownState, type ChatMessage, type MapData, type BuffState } from '@2wowd/shared';
+import { type AbilityDef, type CooldownState, type ChatMessage, type MapData, type BuffState } from '@isoheim/shared';
 import { HealthBar } from '../ui/HealthBar';
 import { ActionBar } from '../ui/ActionBar';
 import { ChatPanel } from '../ui/ChatPanel';

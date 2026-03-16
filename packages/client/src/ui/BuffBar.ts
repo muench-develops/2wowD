@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { type BuffState } from '@2wowd/shared';
+import { type BuffState } from '@isoheim/shared';
 
 const ICON_SIZE = 20;
 const ICON_GAP = 3;

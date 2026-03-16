@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { ClientMessageType } from '@2wowd/shared';
+import { ClientMessageType } from '@isoheim/shared';
 import { NetworkManager } from '../network/NetworkManager';
 
 const MENU_WIDTH = 280;

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { lerp, MAP_WIDTH, MAP_HEIGHT, worldToScreen } from '@2wowd/shared';
+import { lerp, MAP_WIDTH, MAP_HEIGHT, worldToScreen } from '@isoheim/shared';
 
 export class CameraSystem {
   private scene: Phaser.Scene;

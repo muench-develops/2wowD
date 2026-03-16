@@ -1,5 +1,5 @@
 {
-  "name": "@2wowd/client",
+  "name": "@isoheim/client",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@2wowd/shared": "*",
+    "@isoheim/shared": "*",
     "phaser": "^3.87.0"
   },
   "devDependencies": {

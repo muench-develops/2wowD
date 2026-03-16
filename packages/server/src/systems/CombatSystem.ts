@@ -12,13 +12,13 @@ import {
   ABILITY_BUFF_MAP,
   distance,
   generateId,
-} from '@2wowd/shared';
+} from '@isoheim/shared';
 import { Player } from '../entities/Player.js';
 import { Mob } from '../entities/Mob.js';
 import { World } from '../core/World.js';
 import { NetworkManager } from '../network/NetworkManager.js';
 import { BuffSystem } from './BuffSystem.js';
-import { ServerMessageType } from '@2wowd/shared';
+import { ServerMessageType } from '@isoheim/shared';
 
 export class CombatSystem {
   private network: NetworkManager;

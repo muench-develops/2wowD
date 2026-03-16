@@ -1,4 +1,4 @@
-# 🎮 2wowD — 2D Isometric MMO
+# 🎮 Isoheim — 2D Isometric MMO
 
 A 2D isometric multiplayer online RPG built with TypeScript, Phaser.js, and Node.js.
 
@@ -72,7 +72,7 @@ docker-compose up --build
 ## Project Structure
 
 ```text
-2wowD/
+Isoheim/
 ├── packages/
 │   ├── shared/      # Shared types, constants, protocol definitions
 │   ├── server/      # Game server — Node.js, WebSocket, SQLite

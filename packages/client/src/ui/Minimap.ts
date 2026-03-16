@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { type MapData, TileType } from '@2wowd/shared';
+import { type MapData, TileType } from '@isoheim/shared';
 
 const SIZE = 150;
 const SCALE = SIZE / 50; // 3px per tile

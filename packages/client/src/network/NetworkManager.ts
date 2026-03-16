@@ -4,7 +4,7 @@ import {
   ServerMessage,
   ServerMessageType,
   SERVER_PORT,
-} from '@2wowd/shared';
+} from '@isoheim/shared';
 
 type Listener = (data: any) => void;
 

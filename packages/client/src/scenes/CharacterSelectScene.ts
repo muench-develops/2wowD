@@ -12,7 +12,7 @@ import {
   type CharacterCreateFailedMessage,
   type CharacterDeletedMessage,
   type WelcomeMessage,
-} from '@2wowd/shared';
+} from '@isoheim/shared';
 import { NetworkManager } from '../network/NetworkManager';
 
 const CLASSES = [ClassType.Warrior, ClassType.Mage, ClassType.Rogue, ClassType.Priest];

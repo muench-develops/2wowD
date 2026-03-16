@@ -4,7 +4,7 @@ import {
   MOB_PATROL_RANGE,
   distance,
   ServerMessageType,
-} from '@2wowd/shared';
+} from '@isoheim/shared';
 import { Mob, MobAIState } from '../entities/Mob.js';
 import { Player } from '../entities/Player.js';
 import { World } from '../core/World.js';

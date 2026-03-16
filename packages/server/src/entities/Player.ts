@@ -23,7 +23,7 @@ import {
   xpForLevel,
   generateId,
   distance,
-} from '@2wowd/shared';
+} from '@isoheim/shared';
 import type { BuffSystem } from '../systems/BuffSystem.js';
 
 export class Player {

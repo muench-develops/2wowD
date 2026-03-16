@@ -10,7 +10,7 @@ import {
   MIN_PASSWORD_LENGTH,
   MIN_CHARACTER_NAME_LENGTH,
   MAX_CHARACTER_NAME_LENGTH,
-} from '@2wowd/shared';
+} from '@isoheim/shared';
 
 interface SessionData {
   accountId: string;

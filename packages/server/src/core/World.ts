@@ -2,7 +2,7 @@ import {
   MapData,
   Vec2,
   distance,
-} from '@2wowd/shared';
+} from '@isoheim/shared';
 import { Player } from '../entities/Player.js';
 import { Mob } from '../entities/Mob.js';
 

@@ -15,7 +15,7 @@ import { AuthManager } from './auth/AuthManager.js';
 const SAVE_INTERVAL_MS = 60_000; // periodic save every 60 seconds
 
 function main(): void {
-  console.log('=== 2wowD Game Server ===');
+  console.log('=== Isoheim Game Server ===');
 
   // Database & Auth
   const db = new Database('./game.db');

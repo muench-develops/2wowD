@@ -13,7 +13,7 @@
     "sourceMap": true,
     "noEmit": true,
     "paths": {
-      "@2wowd/shared": ["../shared/src"]
+      "@isoheim/shared": ["../shared/src"]
     }
   },
   "include": ["src", "../shared/src"]

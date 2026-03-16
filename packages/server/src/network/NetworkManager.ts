@@ -5,7 +5,7 @@ import {
   SERVER_PORT,
   MAX_PLAYERS,
   generateId,
-} from '@2wowd/shared';
+} from '@isoheim/shared';
 
 export class NetworkManager {
   private wss: WebSocketServer | null = null;

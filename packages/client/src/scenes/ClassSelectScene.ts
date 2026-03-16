@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { ClassType, CLASS_STATS } from '@2wowd/shared';
+import { ClassType, CLASS_STATS } from '@isoheim/shared';
 
 const CLASSES = [ClassType.Warrior, ClassType.Mage, ClassType.Rogue, ClassType.Priest];
 
@@ -19,7 +19,7 @@ export class ClassSelectScene extends Phaser.Scene {
 
   create(): void {
     this.add
-      .text(640, 40, '2wowD', {
+      .text(640, 40, 'Isoheim', {
         fontFamily: 'monospace',
         fontSize: '42px',
         color: '#ffcc44',

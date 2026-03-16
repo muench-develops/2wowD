@@ -1,7 +1,7 @@
 import {
   TICK_INTERVAL,
   ServerMessageType,
-} from '@2wowd/shared';
+} from '@isoheim/shared';
 import { World } from './World.js';
 import { MovementSystem } from '../systems/MovementSystem.js';
 import { CombatSystem } from '../systems/CombatSystem.js';

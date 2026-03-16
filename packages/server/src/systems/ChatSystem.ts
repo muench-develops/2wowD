@@ -7,7 +7,7 @@ import {
   ServerMessageType,
   generateId,
   distance,
-} from '@2wowd/shared';
+} from '@isoheim/shared';
 import { Player } from '../entities/Player.js';
 import { World } from '../core/World.js';
 import { NetworkManager } from '../network/NetworkManager.js';

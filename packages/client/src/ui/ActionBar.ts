@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { AbilityDef, CooldownState, ClientMessageType } from '@2wowd/shared';
+import { AbilityDef, CooldownState, ClientMessageType } from '@isoheim/shared';
 import { NetworkManager } from '../network/NetworkManager';
 
 const SLOT_SIZE = 52;

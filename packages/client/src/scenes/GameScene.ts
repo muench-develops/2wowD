@@ -27,7 +27,7 @@ import {
   type ChatReceivedMessage,
   type LevelUpMessage,
   type MapDataMessage,
-} from '@2wowd/shared';
+} from '@isoheim/shared';
 import { NetworkManager } from '../network/NetworkManager';
 import { InputSystem } from '../systems/InputSystem';
 import { CameraSystem } from '../systems/CameraSystem';

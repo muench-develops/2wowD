@@ -7,7 +7,7 @@ import {
   MAP_HEIGHT,
   PLAYER_SPAWN_X,
   PLAYER_SPAWN_Y,
-} from '@2wowd/shared';
+} from '@isoheim/shared';
 
 export function generateStarterMap(): MapData {
   const tiles: TileType[][] = [];

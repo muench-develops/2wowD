@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { ChatMessage, ChatChannel, ClientMessageType, MAX_CHAT_LENGTH } from '@2wowd/shared';
+import { ChatMessage, ChatChannel, ClientMessageType, MAX_CHAT_LENGTH } from '@isoheim/shared';
 import { NetworkManager } from '../network/NetworkManager';
 
 const PANEL_W = 360;
