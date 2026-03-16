@@ -1,0 +1,7 @@
+[
+  { "persistent_name": "Deckard", "universe": "diablo", "role": "Lead", "created_at": "2026-03-16T18:41:00Z", "legacy_named": false, "status": "active" },
+  { "persistent_name": "Leah", "universe": "diablo", "role": "Frontend Dev", "created_at": "2026-03-16T18:41:00Z", "legacy_named": false, "status": "active" },
+  { "persistent_name": "Tyrael", "universe": "diablo", "role": "Backend Dev", "created_at": "2026-03-16T18:41:00Z", "legacy_named": false, "status": "active" },
+  { "persistent_name": "Lyndon", "universe": "diablo", "role": "Tester", "created_at": "2026-03-16T18:41:00Z", "legacy_named": false, "status": "active" },
+  { "persistent_name": "Haedrig", "universe": "diablo", "role": "DevOps", "created_at": "2026-03-16T18:41:00Z", "legacy_named": false, "status": "active" }
+]
