@@ -23,8 +23,8 @@ export class InputSystem {
     ESC: Phaser.Input.Keyboard.Key;
     M: Phaser.Input.Keyboard.Key;
     B: Phaser.Input.Keyboard.Key;
-    C: Phaser.Input.Keyboard.Key;
     I: Phaser.Input.Keyboard.Key;
+    C: Phaser.Input.Keyboard.Key;
   };
   private moveSeq = 0;
   private lastDir: Vec2 = { x: 0, y: 0 };
@@ -68,7 +68,9 @@ export class InputSystem {
       ENTER: kb.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER, false),
       ESC: kb.addKey(Phaser.Input.Keyboard.KeyCodes.ESC, false),
       M: kb.addKey(Phaser.Input.Keyboard.KeyCodes.M, false),
+      B: kb.addKey(Phaser.Input.Keyboard.KeyCodes.B, false),
       I: kb.addKey(Phaser.Input.Keyboard.KeyCodes.I, false),
+      C: kb.addKey(Phaser.Input.Keyboard.KeyCodes.C, false),
     };
   }
 
