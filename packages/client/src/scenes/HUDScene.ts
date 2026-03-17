@@ -27,10 +27,10 @@ export class HUDScene extends Phaser.Scene {
   private escMenu!: EscMenu;
   private inventoryPanel!: InventoryPanel;
   private lootWindow!: LootWindow;
-  private latencyText!: Phaser.GameObjects.Text;
-  private muteIndicator!: Phaser.GameObjects.Text;
   private guideSystem!: GuideSystem;
   private helpButton!: Phaser.GameObjects.Text;
+  private latencyText!: Phaser.GameObjects.Text;
+  private muteIndicator!: Phaser.GameObjects.Text;
   private gameScene!: Phaser.Scene;
 
   constructor() {
@@ -94,8 +94,15 @@ export class HUDScene extends Phaser.Scene {
     // Loot window
     this.lootWindow = new LootWindow(this);
 
+    // Guide system
+    this.guideSystem = new GuideSystem(this, this.gameScene);
+    this.helpButton = this.add.text(1260, 16, '❓', { fontSize: '20px' })
+      .setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(800)
+      .on('pointerdown', () => this.guideSystem.showCurrentTip());
+    this.gameScene.events.on('gameReady', () => { this.guideSystem.start(); });
+
     // Latency display
-    this.latencyText = this.add.text(1260, 4, '', {
+    this.latencyText = this.add.text(1230, 4, '', {
       fontFamily: 'monospace',
       fontSize: '10px',
       color: '#666688',
