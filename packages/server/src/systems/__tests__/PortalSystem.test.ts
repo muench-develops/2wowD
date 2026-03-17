@@ -1,260 +1,212 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ZoneId, PlayerState, EntityType, ClassType, Direction } from '@isoheim/shared';
-// TODO: Import PortalSystem and ZoneManager once implemented
-// import { PortalSystem } from '../PortalSystem.js';
-// import { ZoneManager } from '../ZoneManager.js';
+import { describe, it, expect, beforeEach } from 'vitest';
+import {
+  ZoneId,
+  ClassType,
+  MobType,
+  TileType,
+  MapData,
+  ZONE_METADATA,
+  ZONE_PORTALS,
+  PORTAL_USE_RANGE,
+  ZONE_PLAYER_SPAWNS,
+} from '@isoheim/shared';
+import { ZoneManager } from '../ZoneManager.js';
+import { World } from '../../core/World.js';
+import { Player } from '../../entities/Player.js';
+import { Mob } from '../../entities/Mob.js';
+
+function createMapData(width: number, height: number): MapData {
+  const tiles = Array.from({ length: height }, () =>
+    Array.from({ length: width }, () => TileType.Grass),
+  );
+  const collisions = Array.from({ length: height }, () =>
+    Array.from({ length: width }, () => false),
+  );
+  return {
+    width,
+    height,
+    tiles,
+    collisions,
+    spawnPoints: [],
+    playerSpawn: { x: Math.floor(width / 2), y: Math.floor(height / 2) },
+  };
+}
 
 describe('PortalSystem', () => {
-  // TODO: Uncomment when PortalSystem is implemented
-  // let portalSystem: PortalSystem;
-  // let zoneManager: ZoneManager;
+  let zm: ZoneManager;
+  let world: World;
 
   beforeEach(() => {
-    // TODO: Initialize systems
-    // zoneManager = new ZoneManager();
-    // portalSystem = new PortalSystem(zoneManager);
+    zm = new ZoneManager();
+    for (const zoneId of Object.values(ZoneId)) {
+      const meta = ZONE_METADATA[zoneId];
+      zm.registerZone(zoneId, createMapData(meta.width, meta.height));
+    }
+    world = new World(zm);
   });
 
-  describe('Portal Proximity Validation', () => {
-    it('should validate player is within 1 tile of portal', () => {
-      // TODO: Test proximity validation
-      // const playerId = 'player-1';
-      // const playerPos = { x: 10, y: 20 };
-      // const portalPos = { x: 10, y: 21 }; // 1 tile away
-      // 
-      // const canUse = portalSystem.canUsePortal(playerId, playerPos, portalPos);
-      // expect(canUse).toBe(true);
-      expect(true).toBe(true); // placeholder
+  describe('Portal Definitions', () => {
+    it('should have portal definitions for all zone connections', () => {
+      expect(ZONE_PORTALS[ZoneId.StarterPlains].length).toBeGreaterThan(0);
+      expect(ZONE_PORTALS[ZoneId.DarkForest].length).toBeGreaterThan(0);
+      expect(ZONE_PORTALS[ZoneId.AncientDungeon].length).toBeGreaterThan(0);
     });
 
-    it('should reject portal use when player is too far', () => {
-      // TODO: Test distance check (> 1 tile)
-      // const playerId = 'player-1';
-      // const playerPos = { x: 10, y: 20 };
-      // const portalPos = { x: 15, y: 25 }; // More than 1 tile away
-      // 
-      // const canUse = portalSystem.canUsePortal(playerId, playerPos, portalPos);
-      // expect(canUse).toBe(false);
-      expect(true).toBe(true); // placeholder
+    it('should have StarterPlains portal leading to DarkForest', () => {
+      const portals = ZONE_PORTALS[ZoneId.StarterPlains];
+      const toDark = portals.find((p) => p.targetZone === ZoneId.DarkForest);
+      expect(toDark).toBeDefined();
     });
 
-    it('should accept player standing exactly on portal tile', () => {
-      // TODO: Test exact position match
-      // const playerId = 'player-1';
-      // const portalPos = { x: 10, y: 20 };
-      // 
-      // const canUse = portalSystem.canUsePortal(playerId, portalPos, portalPos);
-      // expect(canUse).toBe(true);
-      expect(true).toBe(true); // placeholder
-    });
-
-    it('should calculate distance correctly for diagonal positions', () => {
-      // TODO: Test diagonal distance (should use Euclidean or Manhattan distance)
-      // const playerId = 'player-1';
-      // const playerPos = { x: 10, y: 20 };
-      // const portalPos = { x: 11, y: 21 }; // Diagonal, sqrt(2) ≈ 1.41 tiles
-      // 
-      // const canUse = portalSystem.canUsePortal(playerId, playerPos, portalPos);
-      // Distance check depends on implementation (Manhattan: 2, Euclidean: 1.41)
-      // expect(canUse).toBeDefined();
-      expect(true).toBe(true); // placeholder
-    });
-  });
-
-  describe('Successful Zone Transition', () => {
-    it('should teleport player to target zone spawn point', () => {
-      // TODO: Test zone transition
-      // const playerId = 'player-1';
-      // const currentZone = ZoneId.StarterPlains;
-      // const targetZone = ZoneId.DarkForest;
-      // const targetSpawn = { x: 50, y: 50 };
-      // 
-      // const result = portalSystem.usePortal(playerId, currentZone, targetZone, targetSpawn);
-      // 
-      // expect(result.success).toBe(true);
-      // expect(result.newZone).toBe(targetZone);
-      // expect(result.newPosition).toEqual(targetSpawn);
-      expect(true).toBe(true); // placeholder
-    });
-
-    it('should update player zone in ZoneManager', () => {
-      // TODO: Verify zone manager is updated
-      // const playerId = 'player-1';
-      // zoneManager.addPlayerToZone(playerId, ZoneId.StarterPlains);
-      // 
-      // portalSystem.usePortal(playerId, ZoneId.StarterPlains, ZoneId.DarkForest, { x: 50, y: 50 });
-      // 
-      // const plainsPlayers = zoneManager.getPlayersInZone(ZoneId.StarterPlains);
-      // const forestPlayers = zoneManager.getPlayersInZone(ZoneId.DarkForest);
-      // 
-      // expect(plainsPlayers).not.toContain(playerId);
-      // expect(forestPlayers).toContain(playerId);
-      expect(true).toBe(true); // placeholder
-    });
-
-    it('should emit ZoneChanged network message', () => {
-      // TODO: Test network message broadcast
-      // const networkMock = vi.fn();
-      // const playerId = 'player-1';
-      // 
-      // portalSystem.usePortal(playerId, ZoneId.StarterPlains, ZoneId.DarkForest, { x: 50, y: 50 });
-      // 
-      // expect(networkMock).toHaveBeenCalledWith(
-      //   expect.objectContaining({
-      //     type: 'ZoneChanged',
-      //     zoneId: ZoneId.DarkForest,
-      //     position: { x: 50, y: 50 }
-      //   })
-      // );
-      expect(true).toBe(true); // placeholder
+    it('should have DarkForest portals leading to both StarterPlains and AncientDungeon', () => {
+      const portals = ZONE_PORTALS[ZoneId.DarkForest];
+      expect(portals.find((p) => p.targetZone === ZoneId.StarterPlains)).toBeDefined();
+      expect(portals.find((p) => p.targetZone === ZoneId.AncientDungeon)).toBeDefined();
     });
   });
 
   describe('Portal Symmetry', () => {
-    it('should have matching portals in both zones', () => {
-      // TODO: Verify portal pairs exist in both directions
-      // const plainsToDark = zoneManager.getPortalAt(ZoneId.StarterPlains, { x: 10, y: 20 });
-      // expect(plainsToDark).toBeDefined();
-      // expect(plainsToDark.targetZone).toBe(ZoneId.DarkForest);
-      // 
-      // const darkToPlains = zoneManager.getPortalAt(ZoneId.DarkForest, plainsToDark.targetSpawnPoint);
-      // expect(darkToPlains).toBeDefined();
-      // expect(darkToPlains.targetZone).toBe(ZoneId.StarterPlains);
-      expect(true).toBe(true); // placeholder
+    it('should have bidirectional portals between StarterPlains and DarkForest', () => {
+      const plainsToDark = ZONE_PORTALS[ZoneId.StarterPlains].find(
+        (p) => p.targetZone === ZoneId.DarkForest,
+      );
+      const darkToPlains = ZONE_PORTALS[ZoneId.DarkForest].find(
+        (p) => p.targetZone === ZoneId.StarterPlains,
+      );
+      expect(plainsToDark).toBeDefined();
+      expect(darkToPlains).toBeDefined();
     });
 
-    it('should allow round-trip travel through portal pairs', () => {
-      // TODO: Test bidirectional travel
-      // const playerId = 'player-1';
-      // const originalPos = { x: 10, y: 20 };
-      // 
-      // // Go to Dark Forest
-      // portalSystem.usePortal(playerId, ZoneId.StarterPlains, ZoneId.DarkForest, { x: 50, y: 50 });
-      // let players = zoneManager.getPlayersInZone(ZoneId.DarkForest);
-      // expect(players).toContain(playerId);
-      // 
-      // // Return to Starter Plains
-      // portalSystem.usePortal(playerId, ZoneId.DarkForest, ZoneId.StarterPlains, originalPos);
-      // players = zoneManager.getPlayersInZone(ZoneId.StarterPlains);
-      // expect(players).toContain(playerId);
-      expect(true).toBe(true); // placeholder
+    it('should have bidirectional portals between DarkForest and AncientDungeon', () => {
+      const darkToDungeon = ZONE_PORTALS[ZoneId.DarkForest].find(
+        (p) => p.targetZone === ZoneId.AncientDungeon,
+      );
+      const dungeonToDark = ZONE_PORTALS[ZoneId.AncientDungeon].find(
+        (p) => p.targetZone === ZoneId.DarkForest,
+      );
+      expect(darkToDungeon).toBeDefined();
+      expect(dungeonToDark).toBeDefined();
     });
   });
 
-  describe('State Cleanup on Transition', () => {
-    it('should clear player target on zone change', () => {
-      // TODO: Test target cleanup
-      // const playerId = 'player-1';
-      // const playerState: PlayerState = createMockPlayer(playerId);
-      // playerState.targetId = 'mob-1';
-      // 
-      // portalSystem.usePortal(playerId, ZoneId.StarterPlains, ZoneId.DarkForest, { x: 50, y: 50 });
-      // 
-      // const updatedPlayer = getPlayerState(playerId);
-      // expect(updatedPlayer.targetId).toBeNull();
-      expect(true).toBe(true); // placeholder
+  describe('Portal Proximity Validation', () => {
+    it('should find portal when player is exactly at portal position', () => {
+      const portalPos = ZONE_PORTALS[ZoneId.StarterPlains][0].position;
+      const found = zm.findNearestPortal(ZoneId.StarterPlains, portalPos, PORTAL_USE_RANGE);
+      expect(found).not.toBeNull();
+      expect(found!.targetZone).toBe(ZoneId.DarkForest);
     });
 
-    it('should preserve player buffs across zone transition', () => {
-      // TODO: Test buff persistence
-      // const playerId = 'player-1';
-      // const playerState: PlayerState = createMockPlayer(playerId);
-      // playerState.buffs = [{ id: 'buff-1', buffId: 'strength', name: 'Strength', remainingMs: 5000, totalMs: 10000, isDebuff: false }];
-      // 
-      // portalSystem.usePortal(playerId, ZoneId.StarterPlains, ZoneId.DarkForest, { x: 50, y: 50 });
-      // 
-      // const updatedPlayer = getPlayerState(playerId);
-      // expect(updatedPlayer.buffs).toHaveLength(1);
-      // expect(updatedPlayer.buffs[0].buffId).toBe('strength');
-      expect(true).toBe(true); // placeholder
+    it('should find portal when player is within PORTAL_USE_RANGE', () => {
+      const portalPos = ZONE_PORTALS[ZoneId.StarterPlains][0].position;
+      const nearPos = { x: portalPos.x + 1, y: portalPos.y };
+      const found = zm.findNearestPortal(ZoneId.StarterPlains, nearPos, PORTAL_USE_RANGE);
+      expect(found).not.toBeNull();
+    });
+
+    it('should NOT find portal when player is beyond PORTAL_USE_RANGE', () => {
+      const portalPos = ZONE_PORTALS[ZoneId.StarterPlains][0].position;
+      const farPos = { x: portalPos.x + 10, y: portalPos.y + 10 };
+      const found = zm.findNearestPortal(ZoneId.StarterPlains, farPos, PORTAL_USE_RANGE);
+      expect(found).toBeNull();
+    });
+
+    it('should select nearest portal when multiple exist (DarkForest)', () => {
+      const portals = ZONE_PORTALS[ZoneId.DarkForest];
+      const nearFirst = { x: portals[0].position.x, y: portals[0].position.y };
+      const found = zm.findNearestPortal(ZoneId.DarkForest, nearFirst, PORTAL_USE_RANGE);
+      expect(found).not.toBeNull();
+      expect(found!.targetZone).toBe(portals[0].targetZone);
+    });
+  });
+
+  describe('Zone Transition via World.changePlayerZone', () => {
+    it('should move player to new zone and update position', () => {
+      const player = new Player('p1', 'Alice', ClassType.Warrior);
+      player.currentZone = ZoneId.StarterPlains;
+      world.addPlayer(player);
+
+      const portal = ZONE_PORTALS[ZoneId.StarterPlains][0];
+      world.changePlayerZone(player, portal.targetZone, portal.targetSpawnPoint);
+
+      expect(player.currentZone).toBe(ZoneId.DarkForest);
+      expect(player.position.x).toBe(portal.targetSpawnPoint.x);
+      expect(player.position.y).toBe(portal.targetSpawnPoint.y);
+    });
+
+    it('should remove player from old zone after transition', () => {
+      const player = new Player('p1', 'Alice', ClassType.Warrior);
+      player.currentZone = ZoneId.StarterPlains;
+      world.addPlayer(player);
+
+      world.changePlayerZone(player, ZoneId.DarkForest, { x: 5, y: 30 });
+
+      expect(zm.getPlayersInZone(ZoneId.StarterPlains)).toHaveLength(0);
+      expect(zm.getPlayersInZone(ZoneId.DarkForest)).toHaveLength(1);
+    });
+
+    it('should clear player target on zone change', () => {
+      const player = new Player('p1', 'Alice', ClassType.Warrior);
+      player.currentZone = ZoneId.StarterPlains;
+      player.targetId = 'some-mob';
+      world.addPlayer(player);
+
+      world.changePlayerZone(player, ZoneId.DarkForest, { x: 5, y: 30 });
+      expect(player.targetId).toBeNull();
+    });
+
+    it('should clear player moveDirection on zone change', () => {
+      const player = new Player('p1', 'Alice', ClassType.Warrior);
+      player.currentZone = ZoneId.StarterPlains;
+      player.moveDirection = { x: 1, y: 0 };
+      world.addPlayer(player);
+
+      world.changePlayerZone(player, ZoneId.DarkForest, { x: 5, y: 30 });
+      expect(player.moveDirection).toBeNull();
+    });
+
+    it('should clear mob aggro targeting the player in old zone', () => {
+      const player = new Player('p1', 'Alice', ClassType.Warrior);
+      player.currentZone = ZoneId.StarterPlains;
+      world.addPlayer(player);
+
+      const mob = new Mob(MobType.Goblin, { x: 10, y: 10 }, 30, ZoneId.StarterPlains);
+      mob.targetId = 'p1';
+      mob.threatTable.set('p1', 100);
+      world.addMob(mob, ZoneId.StarterPlains);
+
+      world.changePlayerZone(player, ZoneId.DarkForest, { x: 5, y: 30 });
+
+      expect(mob.targetId).toBeNull();
+      expect(mob.threatTable.has('p1')).toBe(false);
     });
   });
 
   describe('Edge Cases', () => {
-    it('should reject portal use while player is dead', () => {
-      // TODO: Test dead player restriction
-      // const playerId = 'player-1';
-      // const playerState: PlayerState = createMockPlayer(playerId);
-      // playerState.isDead = true;
-      // 
-      // const result = portalSystem.usePortal(playerId, ZoneId.StarterPlains, ZoneId.DarkForest, { x: 50, y: 50 });
-      // expect(result.success).toBe(false);
-      // expect(result.reason).toMatch(/dead|deceased/i);
-      expect(true).toBe(true); // placeholder
+    it('should not crash when transitioning to invalid zone', () => {
+      const player = new Player('p1', 'Alice', ClassType.Warrior);
+      player.currentZone = ZoneId.StarterPlains;
+      world.addPlayer(player);
+
+      world.changePlayerZone(player, 'invalid' as ZoneId, { x: 0, y: 0 });
+      // Player should remain in original zone
+      expect(player.currentZone).toBe(ZoneId.StarterPlains);
     });
 
-    it('should reject portal use during combat', () => {
-      // TODO: Test combat restriction
-      // const playerId = 'player-1';
-      // const playerState: PlayerState = createMockPlayer(playerId);
-      // playerState.targetId = 'mob-1'; // In combat
-      // 
-      // const result = portalSystem.usePortal(playerId, ZoneId.StarterPlains, ZoneId.DarkForest, { x: 50, y: 50 });
-      // expect(result.success).toBe(false);
-      // expect(result.reason).toMatch(/combat/i);
-      expect(true).toBe(true); // placeholder
-    });
+    it('should handle round-trip portal travel correctly', () => {
+      const player = new Player('p1', 'Alice', ClassType.Warrior);
+      player.currentZone = ZoneId.StarterPlains;
+      world.addPlayer(player);
 
-    it('should rate-limit rapid portal spam', () => {
-      // TODO: Test rate limiting (e.g., 1 use per 2 seconds)
-      // const playerId = 'player-1';
-      // 
-      // const result1 = portalSystem.usePortal(playerId, ZoneId.StarterPlains, ZoneId.DarkForest, { x: 50, y: 50 });
-      // expect(result1.success).toBe(true);
-      // 
-      // // Immediate second attempt
-      // const result2 = portalSystem.usePortal(playerId, ZoneId.DarkForest, ZoneId.StarterPlains, { x: 10, y: 20 });
-      // expect(result2.success).toBe(false);
-      // expect(result2.reason).toMatch(/cooldown|rate limit/i);
-      expect(true).toBe(true); // placeholder
-    });
+      // Go to Dark Forest
+      world.changePlayerZone(player, ZoneId.DarkForest, { x: 5, y: 30 });
+      expect(player.currentZone).toBe(ZoneId.DarkForest);
 
-    it('should handle portal to non-existent zone gracefully', () => {
-      // TODO: Test invalid target zone
-      // const playerId = 'player-1';
-      // 
-      // const result = portalSystem.usePortal(playerId, ZoneId.StarterPlains, 'invalid-zone' as ZoneId, { x: 50, y: 50 });
-      // expect(result.success).toBe(false);
-      expect(true).toBe(true); // placeholder
-    });
-
-    it('should handle concurrent portal uses by different players', () => {
-      // TODO: Test concurrent usage (race condition check)
-      // const player1Id = 'player-1';
-      // const player2Id = 'player-2';
-      // 
-      // const result1 = portalSystem.usePortal(player1Id, ZoneId.StarterPlains, ZoneId.DarkForest, { x: 50, y: 50 });
-      // const result2 = portalSystem.usePortal(player2Id, ZoneId.StarterPlains, ZoneId.DarkForest, { x: 50, y: 50 });
-      // 
-      // expect(result1.success).toBe(true);
-      // expect(result2.success).toBe(true);
-      // 
-      // const forestPlayers = zoneManager.getPlayersInZone(ZoneId.DarkForest);
-      // expect(forestPlayers).toContain(player1Id);
-      // expect(forestPlayers).toContain(player2Id);
-      expect(true).toBe(true); // placeholder
+      // Return to Starter Plains
+      world.changePlayerZone(player, ZoneId.StarterPlains, { x: 46, y: 25 });
+      expect(player.currentZone).toBe(ZoneId.StarterPlains);
+      expect(zm.getPlayersInZone(ZoneId.DarkForest)).toHaveLength(0);
+      expect(zm.getPlayersInZone(ZoneId.StarterPlains)).toHaveLength(1);
     });
   });
 });
-
-// Helper function stubs (TODO: implement or import from test utils)
-// function createMockPlayer(id: string): PlayerState {
-//   return {
-//     id,
-//     type: EntityType.Player,
-//     name: `Player${id}`,
-//     classType: ClassType.Warrior,
-//     position: { x: 0, y: 0, direction: Direction.S },
-//     health: 100,
-//     maxHealth: 100,
-//     mana: 50,
-//     maxMana: 50,
-//     level: 1,
-//     xp: 0,
-//     xpToNextLevel: 100,
-//     isDead: false,
-//     targetId: null,
-//     buffs: [],
-//     currentZone: ZoneId.StarterPlains,
-//   };
-// }

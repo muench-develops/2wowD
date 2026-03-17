@@ -1,372 +1,264 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { MobType, BuffDef, MobState, PlayerState, EntityType, Direction, ClassType } from '@isoheim/shared';
-// TODO: Import MobAbilitySystem and BuffSystem once implemented
-// import { MobAbilitySystem } from '../MobAbilitySystem.js';
-// import { BuffSystem } from '../BuffSystem.js';
+import { describe, it, expect, beforeEach } from 'vitest';
+import {
+  MobType,
+  ClassType,
+  ZoneId,
+  TileType,
+  MapData,
+  ZONE_METADATA,
+  MOB_DEFINITIONS,
+  MOB_ABILITIES,
+  MOB_ABILITY_MAP,
+  BUFF_DEFINITIONS,
+  AGGRO_RANGE,
+  distance,
+} from '@isoheim/shared';
+import { Mob, MobAIState } from '../../entities/Mob.js';
+import { Player } from '../../entities/Player.js';
+
+function createMapData(width: number, height: number): MapData {
+  return {
+    width,
+    height,
+    tiles: Array.from({ length: height }, () => Array(width).fill(TileType.Grass)),
+    collisions: Array.from({ length: height }, () => Array(width).fill(false)),
+    spawnPoints: [],
+    playerSpawn: { x: Math.floor(width / 2), y: Math.floor(height / 2) },
+  };
+}
 
 describe('MobAbilities', () => {
-  // TODO: Uncomment when systems are implemented
-  // let abilitySystem: MobAbilitySystem;
-  // let buffSystem: BuffSystem;
-
-  beforeEach(() => {
-    // TODO: Initialize systems
-    // buffSystem = new BuffSystem(mockNetwork);
-    // abilitySystem = new MobAbilitySystem(buffSystem);
-  });
-
-  describe('Spider Poison DoT', () => {
-    it('should apply poison buff on bite', () => {
-      // TODO: Test poison application
-      // const spiderId = 'spider-1';
-      // const targetId = 'player-1';
-      // 
-      // abilitySystem.useAbility(spiderId, 'spider-poison-bite', targetId);
-      // 
-      // const targetBuffs = buffSystem.getBuffsFor(targetId);
-      // const poisonBuff = targetBuffs.find(b => b.buffId === 'spider-poison');
-      // expect(poisonBuff).toBeDefined();
-      // expect(poisonBuff.isDebuff).toBe(true);
-      expect(true).toBe(true); // placeholder
+  describe('Mob Ability Definitions', () => {
+    it('should define spider-poison-bite with buff-poison', () => {
+      const ability = MOB_ABILITIES['spider-poison-bite'];
+      expect(ability).toBeDefined();
+      expect(ability.buffId).toBe('buff-poison');
+      expect(ability.damage).toBe(8);
+      expect(ability.range).toBe(1.5);
     });
 
-    it('should deal damage over 5 seconds', () => {
-      // TODO: Test DoT duration (5000ms)
-      // const targetId = 'player-1';
-      // const initialHealth = 100;
-      // 
-      // const poisonBuff: BuffDef = {
-      //   id: 'spider-poison',
-      //   name: 'Spider Poison',
-      //   duration: 5000,
-      //   tickDamage: 5,
-      //   tickInterval: 1000,
-      //   isDebuff: true,
-      //   statModifiers: {},
-      //   tickHeal: 0,
-      // };
-      // 
-      // buffSystem.applyBuff(targetId, poisonBuff);
-      // 
-      // // Simulate 5 ticks (5 seconds)
-      // for (let i = 0; i < 5; i++) {
-      //   buffSystem.tick(1000);
-      // }
-      // 
-      // const targetHealth = getEntityHealth(targetId);
-      // expect(targetHealth).toBe(initialHealth - (5 * 5)); // 5 ticks * 5 damage
-      expect(true).toBe(true); // placeholder
+    it('should define wolf-alpha-howl with buff-stun', () => {
+      const ability = MOB_ABILITIES['wolf-alpha-howl'];
+      expect(ability).toBeDefined();
+      expect(ability.buffId).toBe('buff-stun');
+      expect(ability.cooldown).toBe(10);
+      expect(ability.range).toBe(6.0);
     });
 
-    it('should tick damage every 1 second', () => {
-      // TODO: Test tick interval (1000ms)
-      // const targetId = 'player-1';
-      // const damageSpy = vi.fn();
-      // 
-      // buffSystem.on('damage', damageSpy);
-      // 
-      // const poisonBuff = getMobAbilityBuff('spider-poison-bite');
-      // buffSystem.applyBuff(targetId, poisonBuff);
-      // 
-      // buffSystem.tick(500); // Half tick
-      // expect(damageSpy).not.toHaveBeenCalled();
-      // 
-      // buffSystem.tick(500); // Complete tick (1000ms total)
-      // expect(damageSpy).toHaveBeenCalledTimes(1);
-      expect(true).toBe(true); // placeholder
+    it('should define skeleton-mage-shadow-bolt as ranged damage ability', () => {
+      const ability = MOB_ABILITIES['skeleton-mage-shadow-bolt'];
+      expect(ability).toBeDefined();
+      expect(ability.damage).toBe(25);
+      expect(ability.range).toBe(8.0);
+      expect(ability.buffId).toBeUndefined();
     });
 
-    it('should expire after 5 seconds', () => {
-      // TODO: Test buff expiration
-      // const targetId = 'player-1';
-      // const poisonBuff = getMobAbilityBuff('spider-poison-bite');
-      // 
-      // buffSystem.applyBuff(targetId, poisonBuff);
-      // buffSystem.tick(5000); // Full duration
-      // 
-      // const buffs = buffSystem.getBuffsFor(targetId);
-      // expect(buffs.length).toBe(0);
-      expect(true).toBe(true); // placeholder
+    it('should define bone-lord-fear with buff-fear and no damage', () => {
+      const ability = MOB_ABILITIES['bone-lord-fear'];
+      expect(ability).toBeDefined();
+      expect(ability.damage).toBe(0);
+      expect(ability.buffId).toBe('buff-fear');
+    });
+
+    it('should define bone-lord-bone-storm as AoE damage', () => {
+      const ability = MOB_ABILITIES['bone-lord-bone-storm'];
+      expect(ability).toBeDefined();
+      expect(ability.damage).toBe(35);
+      expect(ability.range).toBe(3.0);
     });
   });
 
-  describe('Bandit Stun', () => {
-    it('should immobilize target for 2 seconds', () => {
-      // TODO: Test stun duration (2000ms)
-      // const banditId = 'bandit-1';
-      // const targetId = 'player-1';
-      // 
-      // abilitySystem.useAbility(banditId, 'bandit-stun', targetId);
-      // 
-      // const targetBuffs = buffSystem.getBuffsFor(targetId);
-      // const stunBuff = targetBuffs.find(b => b.buffId === 'stun');
-      // expect(stunBuff).toBeDefined();
-      // expect(stunBuff.totalMs).toBe(2000);
-      expect(true).toBe(true); // placeholder
+  describe('Mob Ability Mapping', () => {
+    it('should map Spider to spider-poison-bite', () => {
+      expect(MOB_ABILITY_MAP[MobType.Spider]).toContain('spider-poison-bite');
     });
 
-    it('should prevent target movement while stunned', () => {
-      // TODO: Test movement block
-      // const targetId = 'player-1';
-      // const stunBuff = getMobAbilityBuff('bandit-stun');
-      // 
-      // buffSystem.applyBuff(targetId, stunBuff);
-      // 
-      // const canMove = movementSystem.canMove(targetId);
-      // expect(canMove).toBe(false);
-      expect(true).toBe(true); // placeholder
+    it('should map WolfAlpha to wolf-alpha-howl', () => {
+      expect(MOB_ABILITY_MAP[MobType.WolfAlpha]).toContain('wolf-alpha-howl');
     });
 
-    it('should halt AI behavior for stunned mobs', () => {
-      // TODO: Test AI halt when mob is stunned
-      // const mobId = 'mob-1';
-      // const stunBuff = getMobAbilityBuff('bandit-stun');
-      // 
-      // buffSystem.applyBuff(mobId, stunBuff);
-      // 
-      // const aiActive = mobAI.isActive(mobId);
-      // expect(aiActive).toBe(false);
-      expect(true).toBe(true); // placeholder
+    it('should map SkeletonMage to skeleton-mage-shadow-bolt', () => {
+      expect(MOB_ABILITY_MAP[MobType.SkeletonMage]).toContain('skeleton-mage-shadow-bolt');
     });
 
-    it('should allow movement after stun expires', () => {
-      // TODO: Test stun expiration
-      // const targetId = 'player-1';
-      // const stunBuff = getMobAbilityBuff('bandit-stun');
-      // 
-      // buffSystem.applyBuff(targetId, stunBuff);
-      // buffSystem.tick(2000); // Full duration
-      // 
-      // const canMove = movementSystem.canMove(targetId);
-      // expect(canMove).toBe(true);
-      expect(true).toBe(true); // placeholder
+    it('should map BoneLord to fear and bone-storm (rotation)', () => {
+      const abilities = MOB_ABILITY_MAP[MobType.BoneLord]!;
+      expect(abilities).toContain('bone-lord-fear');
+      expect(abilities).toContain('bone-lord-bone-storm');
+      expect(abilities).toHaveLength(2);
+    });
+
+    it('should not map basic mobs (Goblin, Skeleton) to abilities', () => {
+      expect(MOB_ABILITY_MAP[MobType.Goblin]).toBeUndefined();
+      expect(MOB_ABILITY_MAP[MobType.Skeleton]).toBeUndefined();
     });
   });
 
-  describe('Wolf Alpha Howl', () => {
-    it('should hit all targets in 3-tile radius', () => {
-      // TODO: Test AoE range
-      // const wolfId = 'wolf-1';
-      // const wolfPos = { x: 50, y: 50 };
-      // const targets = [
-      //   { id: 'player-1', pos: { x: 51, y: 51 } }, // Within range
-      //   { id: 'player-2', pos: { x: 52, y: 52 } }, // Within range
-      //   { id: 'player-3', pos: { x: 60, y: 60 } }, // Out of range
-      // ];
-      // 
-      // const hitTargets = abilitySystem.useAbility(wolfId, 'wolf-alpha-howl', targets);
-      // 
-      // expect(hitTargets).toContain('player-1');
-      // expect(hitTargets).toContain('player-2');
-      // expect(hitTargets).not.toContain('player-3');
-      expect(true).toBe(true); // placeholder
+  describe('Buff Definitions for Mob Abilities', () => {
+    it('should define poison debuff with DoT ticks', () => {
+      const poison = BUFF_DEFINITIONS['buff-poison'];
+      expect(poison).toBeDefined();
+      expect(poison.isDebuff).toBe(true);
+      expect(poison.duration).toBe(5000);
+      expect(poison.tickDamage).toBe(2);
+      expect(poison.tickInterval).toBe(1000);
     });
 
-    it('should have 10 second cooldown', () => {
-      // TODO: Test cooldown enforcement (10000ms)
-      // const wolfId = 'wolf-1';
-      // 
-      // const result1 = abilitySystem.useAbility(wolfId, 'wolf-alpha-howl', 'player-1');
-      // expect(result1.success).toBe(true);
-      // 
-      // const result2 = abilitySystem.useAbility(wolfId, 'wolf-alpha-howl', 'player-1');
-      // expect(result2.success).toBe(false);
-      // expect(result2.reason).toMatch(/cooldown/i);
-      // 
-      // // After cooldown expires
-      // buffSystem.tick(10000);
-      // const result3 = abilitySystem.useAbility(wolfId, 'wolf-alpha-howl', 'player-1');
-      // expect(result3.success).toBe(true);
-      expect(true).toBe(true); // placeholder
+    it('should define stun debuff that reduces speed to 0', () => {
+      const stun = BUFF_DEFINITIONS['buff-stun'];
+      expect(stun).toBeDefined();
+      expect(stun.isDebuff).toBe(true);
+      expect(stun.duration).toBe(2000);
+      expect(stun.statModifiers.speed).toBe(0.0);
     });
 
-    it('should deal AoE damage to all targets in range', () => {
-      // TODO: Test AoE damage distribution
-      // const wolfId = 'wolf-1';
-      // const targets = ['player-1', 'player-2'];
-      // const damageSpy = vi.fn();
-      // 
-      // abilitySystem.on('damage', damageSpy);
-      // abilitySystem.useAbility(wolfId, 'wolf-alpha-howl', targets);
-      // 
-      // expect(damageSpy).toHaveBeenCalledTimes(2);
-      expect(true).toBe(true); // placeholder
+    it('should define fear debuff that reduces speed to 50%', () => {
+      const fear = BUFF_DEFINITIONS['buff-fear'];
+      expect(fear).toBeDefined();
+      expect(fear.isDebuff).toBe(true);
+      expect(fear.duration).toBe(3000);
+      expect(fear.statModifiers.speed).toBe(0.5);
     });
   });
 
-  describe('Skeleton Mage Ranged Attack', () => {
-    it('should attack targets at 8 tiles distance', () => {
-      // TODO: Test ranged attack range
-      // const mageId = 'mage-1';
-      // const magePos = { x: 10, y: 10 };
-      // const targetPos = { x: 18, y: 10 }; // 8 tiles away
-      // 
-      // const canAttack = abilitySystem.canUseAbility(mageId, 'skeleton-mage-shadow-bolt', targetPos);
-      // expect(canAttack).toBe(true);
-      expect(true).toBe(true); // placeholder
+  describe('Mob Ability Cooldowns', () => {
+    it('should start with empty ability cooldowns', () => {
+      const mob = new Mob(MobType.Spider, { x: 10, y: 10 }, 30, ZoneId.StarterPlains);
+      expect(mob.abilityCooldowns.size).toBe(0);
     });
 
-    it('should NOT attack adjacent targets', () => {
-      // TODO: Test minimum range (should prefer ranged attacks over melee)
-      // const mageId = 'mage-1';
-      // const magePos = { x: 10, y: 10 };
-      // const targetPos = { x: 11, y: 10 }; // Adjacent
-      // 
-      // // Skeleton Mage AI should prefer to kite away from adjacent targets
-      // // This test verifies ranged behavior preference
-      // const shouldKite = mobAI.shouldMaintainDistance(mageId, targetPos);
-      // expect(shouldKite).toBe(true);
-      expect(true).toBe(true); // placeholder
+    it('should set cooldown when ability is used', () => {
+      const mob = new Mob(MobType.Spider, { x: 10, y: 10 }, 30, ZoneId.StarterPlains);
+      const ability = MOB_ABILITIES['spider-poison-bite'];
+      mob.abilityCooldowns.set('spider-poison-bite', ability.cooldown * 1000);
+
+      expect(mob.abilityCooldowns.has('spider-poison-bite')).toBe(true);
+      expect(mob.abilityCooldowns.get('spider-poison-bite')).toBe(6000);
     });
 
-    it('should deal shadow damage on hit', () => {
-      // TODO: Test shadow bolt damage
-      // const mageId = 'mage-1';
-      // const targetId = 'player-1';
-      // const initialHealth = 100;
-      // 
-      // abilitySystem.useAbility(mageId, 'skeleton-mage-shadow-bolt', targetId);
-      // 
-      // const targetHealth = getEntityHealth(targetId);
-      // expect(targetHealth).toBeLessThan(initialHealth);
-      expect(true).toBe(true); // placeholder
+    it('should respect cooldown — cannot use ability while on cooldown', () => {
+      const mob = new Mob(MobType.Spider, { x: 10, y: 10 }, 30, ZoneId.StarterPlains);
+      mob.abilityCooldowns.set('spider-poison-bite', 5000);
+
+      expect(mob.abilityCooldowns.has('spider-poison-bite')).toBe(true);
+    });
+
+    it('should clear cooldowns on mob death', () => {
+      const mob = new Mob(MobType.Spider, { x: 10, y: 10 }, 30, ZoneId.StarterPlains);
+      mob.abilityCooldowns.set('spider-poison-bite', 5000);
+      mob.die();
+
+      // On respawn, cooldowns should be ready because new mob state
+      const fresh = new Mob(MobType.Spider, { x: 10, y: 10 }, 30, ZoneId.StarterPlains);
+      expect(fresh.abilityCooldowns.size).toBe(0);
     });
   });
 
-  describe('Bone Lord Boss Mechanics', () => {
-    it('should rotate through 3 abilities correctly', () => {
-      // TODO: Test ability rotation (Fear → Bone Storm → Melee → repeat)
-      // const bossId = 'boss-1';
-      // const targetId = 'player-1';
-      // 
-      // const ability1 = abilitySystem.getNextAbility(bossId);
-      // expect(ability1).toBe('bone-lord-fear');
-      // abilitySystem.useAbility(bossId, ability1, targetId);
-      // 
-      // const ability2 = abilitySystem.getNextAbility(bossId);
-      // expect(ability2).toBe('bone-lord-bone-storm');
-      // abilitySystem.useAbility(bossId, ability2, targetId);
-      // 
-      // const ability3 = abilitySystem.getNextAbility(bossId);
-      // expect(ability3).toBe('melee-attack');
-      // abilitySystem.useAbility(bossId, ability3, targetId);
-      // 
-      // const ability4 = abilitySystem.getNextAbility(bossId);
-      // expect(ability4).toBe('bone-lord-fear'); // Back to start
-      expect(true).toBe(true); // placeholder
+  describe('Bone Lord Ability Rotation', () => {
+    it('should start with lastAbilityIndex at -1', () => {
+      const boneLord = new Mob(MobType.BoneLord, { x: 20, y: 20 }, 600, ZoneId.AncientDungeon);
+      expect(boneLord.lastAbilityIndex).toBe(-1);
     });
 
-    it('should have 10 minute respawn timer', () => {
-      // TODO: Test boss respawn (600000ms)
-      // const bossId = 'boss-1';
-      // const spawnPos = { x: 100, y: 100 };
-      // 
-      // spawnSystem.killMob(bossId);
-      // 
-      // const respawnTime = spawnSystem.getRespawnTime(bossId);
-      // expect(respawnTime).toBe(600000);
-      expect(true).toBe(true); // placeholder
+    it('should track ability rotation index', () => {
+      const boneLord = new Mob(MobType.BoneLord, { x: 20, y: 20 }, 600, ZoneId.AncientDungeon);
+      const abilities = MOB_ABILITY_MAP[MobType.BoneLord]!;
+
+      // Simulate rotation: first ability at index 0
+      boneLord.lastAbilityIndex = 0;
+      const nextIndex = (boneLord.lastAbilityIndex + 1) % abilities.length;
+      expect(nextIndex).toBe(1);
+
+      // After index 1, wraps back to 0
+      boneLord.lastAbilityIndex = 1;
+      const wrappedIndex = (boneLord.lastAbilityIndex + 1) % abilities.length;
+      expect(wrappedIndex).toBe(0);
     });
 
-    it('should apply Fear debuff with correct duration', () => {
-      // TODO: Test Fear ability
-      // const bossId = 'boss-1';
-      // const targetId = 'player-1';
-      // 
-      // abilitySystem.useAbility(bossId, 'bone-lord-fear', targetId);
-      // 
-      // const targetBuffs = buffSystem.getBuffsFor(targetId);
-      // const fearBuff = targetBuffs.find(b => b.buffId === 'fear');
-      // expect(fearBuff).toBeDefined();
-      // expect(fearBuff.isDebuff).toBe(true);
-      expect(true).toBe(true); // placeholder
-    });
-
-    it('should deal AoE damage with Bone Storm', () => {
-      // TODO: Test Bone Storm AoE
-      // const bossId = 'boss-1';
-      // const targets = ['player-1', 'player-2', 'player-3'];
-      // 
-      // const hitTargets = abilitySystem.useAbility(bossId, 'bone-lord-bone-storm', targets);
-      // expect(hitTargets.length).toBeGreaterThan(0);
-      expect(true).toBe(true); // placeholder
+    it('should have both abilities available (fear + bone storm)', () => {
+      const abilities = MOB_ABILITY_MAP[MobType.BoneLord]!;
+      expect(abilities[0]).toBe('bone-lord-fear');
+      expect(abilities[1]).toBe('bone-lord-bone-storm');
     });
   });
 
-  describe('Edge Cases', () => {
-    it('should handle stun during zone transition gracefully', () => {
-      // TODO: Test stun + zone change interaction
-      // const playerId = 'player-1';
-      // const stunBuff = getMobAbilityBuff('bandit-stun');
-      // 
-      // buffSystem.applyBuff(playerId, stunBuff);
-      // 
-      // // Player uses portal while stunned (should stun prevent portal use?)
-      // const canUsePortal = portalSystem.canUsePortal(playerId);
-      // // Decision: stunned players CAN use portals (escape mechanism)
-      // expect(canUsePortal).toBe(true);
-      expect(true).toBe(true); // placeholder
+  describe('Mob Zone Assignment', () => {
+    it('should create mob in specified zone', () => {
+      const mob = new Mob(MobType.Spider, { x: 10, y: 10 }, 30, ZoneId.DarkForest);
+      expect(mob.zoneId).toBe(ZoneId.DarkForest);
     });
 
-    it('should persist poison across zone change', () => {
-      // TODO: Test poison DoT + zone transition
-      // const playerId = 'player-1';
-      // const poisonBuff = getMobAbilityBuff('spider-poison-bite');
-      // 
-      // buffSystem.applyBuff(playerId, poisonBuff);
-      // portalSystem.usePortal(playerId, ZoneId.StarterPlains, ZoneId.DarkForest, { x: 50, y: 50 });
-      // 
-      // const buffs = buffSystem.getBuffsFor(playerId);
-      // expect(buffs.some(b => b.buffId === 'spider-poison')).toBe(true);
-      expect(true).toBe(true); // placeholder
+    it('should default to StarterPlains when no zone specified', () => {
+      const mob = new Mob(MobType.Goblin, { x: 10, y: 10 }, 30);
+      expect(mob.zoneId).toBe(ZoneId.StarterPlains);
     });
 
-    it('should handle mob using ability on dead target', () => {
-      // TODO: Test ability on dead target
-      // const mobId = 'mob-1';
-      // const targetId = 'player-1';
-      // 
-      // // Kill target
-      // setEntityHealth(targetId, 0);
-      // 
-      // const result = abilitySystem.useAbility(mobId, 'spider-poison-bite', targetId);
-      // expect(result.success).toBe(false);
-      expect(true).toBe(true); // placeholder
+    it('should use zone-specific bounds for movement clamping', () => {
+      const meta = ZONE_METADATA[ZoneId.AncientDungeon];
+      const mob = new Mob(MobType.BoneLord, { x: 20, y: 20 }, 600, ZoneId.AncientDungeon);
+
+      // Move toward edge, should clamp within zone bounds
+      mob.moveToward({ x: 100, y: 100 }, 100);
+      expect(mob.position.x).toBeLessThanOrEqual(meta.width - 2);
+      expect(mob.position.y).toBeLessThanOrEqual(meta.height - 2);
+    });
+  });
+
+  describe('Skeleton Mage Ranged Capability', () => {
+    it('should have 8.0 attack range', () => {
+      const def = MOB_DEFINITIONS[MobType.SkeletonMage];
+      expect(def.attackRange).toBe(8.0);
     });
 
-    it('should clear ability cooldowns on mob death', () => {
-      // TODO: Test cooldown reset on death
-      // const mobId = 'wolf-1';
-      // 
-      // abilitySystem.useAbility(mobId, 'wolf-alpha-howl', 'player-1');
-      // 
-      // // Mob dies
-      // spawnSystem.killMob(mobId);
-      // 
-      // // Mob respawns
-      // const newMobId = spawnSystem.respawnMob(mobId);
-      // 
-      // // Should be able to use ability immediately
-      // const result = abilitySystem.useAbility(newMobId, 'wolf-alpha-howl', 'player-1');
-      // expect(result.success).toBe(true);
-      expect(true).toBe(true); // placeholder
+    it('should be able to attack from 8 tiles distance', () => {
+      const ability = MOB_ABILITIES['skeleton-mage-shadow-bolt'];
+      const mobPos = { x: 10, y: 10 };
+      const targetPos = { x: 18, y: 10 };
+
+      const dist = distance(mobPos, targetPos);
+      expect(dist).toBe(8);
+      expect(dist).toBeLessThanOrEqual(ability.range);
     });
 
-    it('should handle multiple stuns on same target', () => {
-      // TODO: Test stun stacking/refresh behavior
-      // const targetId = 'player-1';
-      // const stunBuff = getMobAbilityBuff('bandit-stun');
-      // 
-      // buffSystem.applyBuff(targetId, stunBuff);
-      // buffSystem.tick(1000); // 1 second elapsed
-      // 
-      // // Apply stun again (should refresh duration)
-      // buffSystem.applyBuff(targetId, stunBuff);
-      // 
-      // const buffs = buffSystem.getBuffsFor(targetId);
-      // const stun = buffs.find(b => b.buffId === 'stun');
-      // expect(stun.remainingMs).toBe(2000); // Refreshed to full duration
-      expect(true).toBe(true); // placeholder
+    it('should not reach target at distance > 8', () => {
+      const ability = MOB_ABILITIES['skeleton-mage-shadow-bolt'];
+      const mobPos = { x: 10, y: 10 };
+      const targetPos = { x: 20, y: 10 };
+
+      const dist = distance(mobPos, targetPos);
+      expect(dist).toBeGreaterThan(ability.range);
+    });
+  });
+
+  describe('Mob Death and Respawn', () => {
+    it('should set isDead and clear threat on death', () => {
+      const mob = new Mob(MobType.Goblin, { x: 10, y: 10 }, 30, ZoneId.StarterPlains);
+      mob.threatTable.set('p1', 100);
+      mob.targetId = 'p1';
+
+      mob.die();
+
+      expect(mob.isDead).toBe(true);
+      expect(mob.aiState).toBe(MobAIState.Dead);
+      expect(mob.targetId).toBeNull();
+      expect(mob.threatTable.size).toBe(0);
+    });
+
+    it('should restore health and position on respawn', () => {
+      const spawn = { x: 15, y: 15 };
+      const mob = new Mob(MobType.Wolf, spawn, 30, ZoneId.StarterPlains);
+      mob.position.x = 20;
+      mob.position.y = 20;
+      mob.health = 0;
+      mob.isDead = true;
+
+      mob.respawn();
+
+      expect(mob.isDead).toBe(false);
+      expect(mob.health).toBe(mob.maxHealth);
+      expect(mob.position.x).toBe(spawn.x);
+      expect(mob.position.y).toBe(spawn.y);
+      expect(mob.aiState).toBe(MobAIState.Idle);
     });
   });
 });

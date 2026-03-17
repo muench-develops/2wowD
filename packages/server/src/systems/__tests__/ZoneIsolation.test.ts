@@ -1,349 +1,310 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { ZoneId, PlayerState, MobState, EntityType, ClassType, MobType, Direction } from '@isoheim/shared';
-// TODO: Import systems once implemented
-// import { ZoneManager } from '../ZoneManager.js';
-// import { MobAISystem } from '../MobAISystem.js';
-// import { CombatSystem } from '../CombatSystem.js';
-// import { NetworkManager } from '../../network/NetworkManager.js';
+import {
+  ZoneId,
+  ClassType,
+  MobType,
+  TileType,
+  MapData,
+  ZONE_METADATA,
+  AGGRO_RANGE,
+  distance,
+} from '@isoheim/shared';
+import { ZoneManager } from '../ZoneManager.js';
+import { World } from '../../core/World.js';
+import { Player } from '../../entities/Player.js';
+import { Mob } from '../../entities/Mob.js';
+
+function createMapData(width: number, height: number): MapData {
+  return {
+    width,
+    height,
+    tiles: Array.from({ length: height }, () => Array(width).fill(TileType.Grass)),
+    collisions: Array.from({ length: height }, () => Array(width).fill(false)),
+    spawnPoints: [],
+    playerSpawn: { x: Math.floor(width / 2), y: Math.floor(height / 2) },
+  };
+}
 
 describe('ZoneIsolation', () => {
-  // TODO: Uncomment when systems are implemented
-  // let zoneManager: ZoneManager;
-  // let mobAI: MobAISystem;
-  // let combatSystem: CombatSystem;
-  // let networkManager: NetworkManager;
+  let zm: ZoneManager;
+  let world: World;
 
   beforeEach(() => {
-    // TODO: Initialize systems
-    // networkManager = new NetworkManager();
-    // zoneManager = new ZoneManager();
-    // mobAI = new MobAISystem(zoneManager);
-    // combatSystem = new CombatSystem(zoneManager);
+    zm = new ZoneManager();
+    for (const zoneId of Object.values(ZoneId)) {
+      const meta = ZONE_METADATA[zoneId];
+      zm.registerZone(zoneId, createMapData(meta.width, meta.height));
+    }
+    world = new World(zm);
   });
 
   describe('Player Visibility Between Zones', () => {
-    it('should NOT show players from different zones to each other', () => {
-      // TODO: Test player isolation
-      // const player1Id = 'player-1';
-      // const player2Id = 'player-2';
-      // 
-      // zoneManager.addPlayerToZone(player1Id, ZoneId.StarterPlains);
-      // zoneManager.addPlayerToZone(player2Id, ZoneId.DarkForest);
-      // 
-      // const visibleToPlayer1 = zoneManager.getVisiblePlayersFor(player1Id);
-      // expect(visibleToPlayer1).not.toContain(player2Id);
-      // 
-      // const visibleToPlayer2 = zoneManager.getVisiblePlayersFor(player2Id);
-      // expect(visibleToPlayer2).not.toContain(player1Id);
-      expect(true).toBe(true); // placeholder
+    it('should NOT include players from different zones in zone player list', () => {
+      const p1 = new Player('p1', 'Alice', ClassType.Warrior);
+      p1.currentZone = ZoneId.StarterPlains;
+      const p2 = new Player('p2', 'Bob', ClassType.Mage);
+      p2.currentZone = ZoneId.DarkForest;
+
+      world.addPlayer(p1);
+      world.addPlayer(p2);
+
+      const plainsPlayers = zm.getPlayersInZone(ZoneId.StarterPlains);
+      const forestPlayers = zm.getPlayersInZone(ZoneId.DarkForest);
+
+      expect(plainsPlayers.map((p) => p.id)).toEqual(['p1']);
+      expect(forestPlayers.map((p) => p.id)).toEqual(['p2']);
     });
 
     it('should show players in same zone to each other', () => {
-      // TODO: Test same-zone visibility
-      // const player1Id = 'player-1';
-      // const player2Id = 'player-2';
-      // const player3Id = 'player-3';
-      // 
-      // zoneManager.addPlayerToZone(player1Id, ZoneId.StarterPlains);
-      // zoneManager.addPlayerToZone(player2Id, ZoneId.StarterPlains);
-      // zoneManager.addPlayerToZone(player3Id, ZoneId.DarkForest);
-      // 
-      // const visibleToPlayer1 = zoneManager.getVisiblePlayersFor(player1Id);
-      // expect(visibleToPlayer1).toContain(player2Id);
-      // expect(visibleToPlayer1).not.toContain(player3Id);
-      expect(true).toBe(true); // placeholder
+      const p1 = new Player('p1', 'Alice', ClassType.Warrior);
+      p1.currentZone = ZoneId.StarterPlains;
+      const p2 = new Player('p2', 'Bob', ClassType.Mage);
+      p2.currentZone = ZoneId.StarterPlains;
+
+      world.addPlayer(p1);
+      world.addPlayer(p2);
+
+      const plainsPlayers = zm.getPlayersInZone(ZoneId.StarterPlains);
+      expect(plainsPlayers).toHaveLength(2);
+      expect(plainsPlayers.map((p) => p.id)).toContain('p1');
+      expect(plainsPlayers.map((p) => p.id)).toContain('p2');
     });
 
     it('should update visibility when player changes zones', () => {
-      // TODO: Test visibility update on zone transition
-      // const player1Id = 'player-1';
-      // const player2Id = 'player-2';
-      // 
-      // zoneManager.addPlayerToZone(player1Id, ZoneId.StarterPlains);
-      // zoneManager.addPlayerToZone(player2Id, ZoneId.DarkForest);
-      // 
-      // // Player2 enters same zone as Player1
-      // zoneManager.movePlayerToZone(player2Id, ZoneId.StarterPlains);
-      // 
-      // const visibleToPlayer1 = zoneManager.getVisiblePlayersFor(player1Id);
-      // expect(visibleToPlayer1).toContain(player2Id);
-      expect(true).toBe(true); // placeholder
+      const p1 = new Player('p1', 'Alice', ClassType.Warrior);
+      p1.currentZone = ZoneId.StarterPlains;
+      const p2 = new Player('p2', 'Bob', ClassType.Mage);
+      p2.currentZone = ZoneId.DarkForest;
+
+      world.addPlayer(p1);
+      world.addPlayer(p2);
+
+      // Move p2 to same zone as p1
+      world.changePlayerZone(p2, ZoneId.StarterPlains, { x: 25, y: 25 });
+
+      const plainsPlayers = zm.getPlayersInZone(ZoneId.StarterPlains);
+      expect(plainsPlayers).toHaveLength(2);
+      expect(zm.getPlayersInZone(ZoneId.DarkForest)).toHaveLength(0);
     });
   });
 
   describe('Mob Aggro Across Zones', () => {
-    it('should NOT aggro players in different zones', () => {
-      // TODO: Test cross-zone aggro prevention
-      // const mobId = 'mob-1';
-      // const playerId = 'player-1';
-      // 
-      // zoneManager.addMobToZone(mobId, ZoneId.DarkForest);
-      // zoneManager.addPlayerToZone(playerId, ZoneId.StarterPlains);
-      // 
-      // const canAggro = mobAI.canAggroTarget(mobId, playerId);
-      // expect(canAggro).toBe(false);
-      expect(true).toBe(true); // placeholder
+    it('should only return mobs from their zone via getPlayersNearInZone', () => {
+      const player = new Player('p1', 'Alice', ClassType.Warrior);
+      player.currentZone = ZoneId.StarterPlains;
+      player.position.x = 10;
+      player.position.y = 10;
+      world.addPlayer(player);
+
+      const mob = new Mob(MobType.Goblin, { x: 11, y: 11 }, 30, ZoneId.DarkForest);
+      world.addMob(mob, ZoneId.DarkForest);
+
+      // Player is in StarterPlains, mob is in DarkForest — no aggro overlap
+      const nearbyPlayersForMob = zm.getPlayersNearInZone(ZoneId.DarkForest, mob.position, AGGRO_RANGE);
+      expect(nearbyPlayersForMob).toHaveLength(0);
     });
 
-    it('should only aggro players in same zone', () => {
-      // TODO: Test same-zone aggro
-      // const mobId = 'mob-1';
-      // const player1Id = 'player-1';
-      // const player2Id = 'player-2';
-      // 
-      // zoneManager.addMobToZone(mobId, ZoneId.DarkForest);
-      // zoneManager.addPlayerToZone(player1Id, ZoneId.DarkForest);
-      // zoneManager.addPlayerToZone(player2Id, ZoneId.StarterPlains);
-      // 
-      // const canAggroPlayer1 = mobAI.canAggroTarget(mobId, player1Id);
-      // const canAggroPlayer2 = mobAI.canAggroTarget(mobId, player2Id);
-      // 
-      // expect(canAggroPlayer1).toBe(true);
-      // expect(canAggroPlayer2).toBe(false);
-      expect(true).toBe(true); // placeholder
+    it('should aggro on players in the same zone', () => {
+      const player = new Player('p1', 'Alice', ClassType.Warrior);
+      player.currentZone = ZoneId.DarkForest;
+      player.position.x = 11;
+      player.position.y = 11;
+      world.addPlayer(player);
+
+      const mob = new Mob(MobType.Wolf, { x: 10, y: 10 }, 30, ZoneId.DarkForest);
+      world.addMob(mob, ZoneId.DarkForest);
+
+      const nearbyPlayers = zm.getPlayersNearInZone(ZoneId.DarkForest, mob.position, AGGRO_RANGE);
+      expect(nearbyPlayers).toHaveLength(1);
+      expect(nearbyPlayers[0].id).toBe('p1');
     });
 
     it('should drop aggro when target changes zones', () => {
-      // TODO: Test aggro drop on zone transition
-      // const mobId = 'mob-1';
-      // const playerId = 'player-1';
-      // 
-      // zoneManager.addMobToZone(mobId, ZoneId.DarkForest);
-      // zoneManager.addPlayerToZone(playerId, ZoneId.DarkForest);
-      // 
-      // mobAI.setTarget(mobId, playerId);
-      // expect(mobAI.getTarget(mobId)).toBe(playerId);
-      // 
-      // // Player uses portal to escape
-      // zoneManager.movePlayerToZone(playerId, ZoneId.StarterPlains);
-      // 
-      // // Mob should drop target
-      // expect(mobAI.getTarget(mobId)).toBeNull();
-      expect(true).toBe(true); // placeholder
+      const player = new Player('p1', 'Alice', ClassType.Warrior);
+      player.currentZone = ZoneId.DarkForest;
+      world.addPlayer(player);
+
+      const mob = new Mob(MobType.Wolf, { x: 10, y: 10 }, 30, ZoneId.DarkForest);
+      mob.targetId = 'p1';
+      mob.threatTable.set('p1', 100);
+      world.addMob(mob, ZoneId.DarkForest);
+
+      // Player escapes via portal
+      world.changePlayerZone(player, ZoneId.StarterPlains, { x: 25, y: 25 });
+
+      expect(mob.targetId).toBeNull();
+      expect(mob.threatTable.has('p1')).toBe(false);
     });
 
-    it('should only consider players in same zone for aggro range checks', () => {
-      // TODO: Test aggro range filtering by zone
-      // const mobId = 'mob-1';
-      // const mobPos = { x: 50, y: 50 };
-      // 
-      // const player1Id = 'player-1';
-      // const player1Pos = { x: 52, y: 52 }; // Within aggro range
-      // 
-      // const player2Id = 'player-2';
-      // const player2Pos = { x: 52, y: 52 }; // Same position, different zone
-      // 
-      // zoneManager.addMobToZone(mobId, ZoneId.DarkForest);
-      // zoneManager.addPlayerToZone(player1Id, ZoneId.DarkForest);
-      // zoneManager.addPlayerToZone(player2Id, ZoneId.StarterPlains);
-      // 
-      // const potentialTargets = mobAI.getPlayersInAggroRange(mobId, mobPos, 5);
-      // expect(potentialTargets).toContain(player1Id);
-      // expect(potentialTargets).not.toContain(player2Id);
-      expect(true).toBe(true); // placeholder
+    it('should only consider same-zone players for proximity checks', () => {
+      const p1 = new Player('p1', 'Same', ClassType.Warrior);
+      p1.currentZone = ZoneId.DarkForest;
+      p1.position.x = 11;
+      p1.position.y = 11;
+
+      const p2 = new Player('p2', 'Different', ClassType.Mage);
+      p2.currentZone = ZoneId.StarterPlains;
+      p2.position.x = 11;
+      p2.position.y = 11;
+
+      world.addPlayer(p1);
+      world.addPlayer(p2);
+
+      const near = zm.getPlayersNearInZone(ZoneId.DarkForest, { x: 10, y: 10 }, AGGRO_RANGE);
+      expect(near).toHaveLength(1);
+      expect(near[0].id).toBe('p1');
     });
   });
 
-  describe('Combat Isolation Between Zones', () => {
-    it('should NOT allow combat between entities in different zones', () => {
-      // TODO: Test cross-zone combat prevention
-      // const attackerId = 'player-1';
-      // const targetId = 'mob-1';
-      // 
-      // zoneManager.addPlayerToZone(attackerId, ZoneId.StarterPlains);
-      // zoneManager.addMobToZone(targetId, ZoneId.DarkForest);
-      // 
-      // const canAttack = combatSystem.canAttack(attackerId, targetId);
-      // expect(canAttack).toBe(false);
-      expect(true).toBe(true); // placeholder
+  describe('Loot Isolation Between Zones', () => {
+    it('should isolate loot per zone', () => {
+      const loot1 = { id: 'l1', position: { x: 5, y: 5 }, items: [], killerId: 'p1', killerOnlyUntil: 0, expiresAt: 0 };
+      const loot2 = { id: 'l2', position: { x: 5, y: 5 }, items: [], killerId: 'p2', killerOnlyUntil: 0, expiresAt: 0 };
+
+      world.addLoot(loot1, ZoneId.StarterPlains);
+      world.addLoot(loot2, ZoneId.DarkForest);
+
+      const plainsLoot = world.getLootsInZone(ZoneId.StarterPlains);
+      const forestLoot = world.getLootsInZone(ZoneId.DarkForest);
+
+      expect(plainsLoot.size).toBe(1);
+      expect(plainsLoot.has('l1')).toBe(true);
+      expect(forestLoot.size).toBe(1);
+      expect(forestLoot.has('l2')).toBe(true);
     });
 
-    it('should cancel ongoing combat when target changes zones', () => {
-      // TODO: Test combat cancellation on zone transition
-      // const playerId = 'player-1';
-      // const mobId = 'mob-1';
-      // 
-      // zoneManager.addPlayerToZone(playerId, ZoneId.DarkForest);
-      // zoneManager.addMobToZone(mobId, ZoneId.DarkForest);
-      // 
-      // combatSystem.startCombat(playerId, mobId);
-      // expect(combatSystem.isInCombat(playerId)).toBe(true);
-      // 
-      // // Player uses portal
-      // zoneManager.movePlayerToZone(playerId, ZoneId.StarterPlains);
-      // 
-      // // Combat should be cleared
-      // expect(combatSystem.isInCombat(playerId)).toBe(false);
-      expect(true).toBe(true); // placeholder
-    });
+    it('should not show loot from one zone in another', () => {
+      const loot = { id: 'l1', position: { x: 5, y: 5 }, items: [], killerId: 'p1', killerOnlyUntil: 0, expiresAt: 0 };
+      world.addLoot(loot, ZoneId.AncientDungeon);
 
-    it('should only hit targets in same zone with AoE abilities', () => {
-      // TODO: Test AoE zone filtering
-      // const casterId = 'player-1';
-      // const casterPos = { x: 50, y: 50 };
-      // 
-      // const target1Id = 'mob-1';
-      // const target1Pos = { x: 52, y: 52 }; // Within AoE range
-      // 
-      // const target2Id = 'mob-2';
-      // const target2Pos = { x: 52, y: 52 }; // Same position, different zone
-      // 
-      // zoneManager.addPlayerToZone(casterId, ZoneId.DarkForest);
-      // zoneManager.addMobToZone(target1Id, ZoneId.DarkForest);
-      // zoneManager.addMobToZone(target2Id, ZoneId.AncientDungeon);
-      // 
-      // const hitTargets = combatSystem.getAoETargets(casterId, casterPos, 5);
-      // expect(hitTargets).toContain(target1Id);
-      // expect(hitTargets).not.toContain(target2Id);
-      expect(true).toBe(true); // placeholder
-    });
-
-    it('should NOT deal damage across zones', () => {
-      // TODO: Test damage isolation
-      // const attackerId = 'player-1';
-      // const targetId = 'mob-1';
-      // 
-      // zoneManager.addPlayerToZone(attackerId, ZoneId.StarterPlains);
-      // zoneManager.addMobToZone(targetId, ZoneId.DarkForest);
-      // 
-      // const initialHealth = 100;
-      // 
-      // const damageResult = combatSystem.dealDamage(attackerId, targetId, 20);
-      // expect(damageResult.success).toBe(false);
-      // 
-      // // Target health should be unchanged
-      // const targetHealth = getEntityHealth(targetId);
-      // expect(targetHealth).toBe(initialHealth);
-      expect(true).toBe(true); // placeholder
+      expect(world.getLootsInZone(ZoneId.StarterPlains).size).toBe(0);
+      expect(world.getLootsInZone(ZoneId.DarkForest).size).toBe(0);
+      expect(world.getLootsInZone(ZoneId.AncientDungeon).size).toBe(1);
     });
   });
 
-  describe('Broadcast Message Scoping', () => {
-    it('should broadcast messages only to players in same zone', () => {
-      // TODO: Test zone-scoped broadcast
-      // const player1Id = 'player-1';
-      // const player2Id = 'player-2';
-      // const player3Id = 'player-3';
-      // 
-      // zoneManager.addPlayerToZone(player1Id, ZoneId.StarterPlains);
-      // zoneManager.addPlayerToZone(player2Id, ZoneId.StarterPlains);
-      // zoneManager.addPlayerToZone(player3Id, ZoneId.DarkForest);
-      // 
-      // const broadcastSpy = vi.fn();
-      // networkManager.on('broadcast', broadcastSpy);
-      // 
-      // networkManager.broadcastToZone(ZoneId.StarterPlains, { type: 'ChatMessage', content: 'Hello!' });
-      // 
-      // // Should send to player1 and player2, not player3
-      // expect(broadcastSpy).toHaveBeenCalledTimes(2);
-      expect(true).toBe(true); // placeholder
+  describe('Combat Isolation', () => {
+    it('should scope getPlayersNear to a specific zone', () => {
+      const p1 = new Player('p1', 'Plains', ClassType.Warrior);
+      p1.currentZone = ZoneId.StarterPlains;
+      p1.position.x = 10;
+      p1.position.y = 10;
+
+      const p2 = new Player('p2', 'Forest', ClassType.Mage);
+      p2.currentZone = ZoneId.DarkForest;
+      p2.position.x = 10;
+      p2.position.y = 10;
+
+      world.addPlayer(p1);
+      world.addPlayer(p2);
+
+      // When querying with zone scope, should only find zone-local player
+      const nearPlains = world.getPlayersNear({ x: 10, y: 10 }, 5, ZoneId.StarterPlains);
+      expect(nearPlains).toHaveLength(1);
+      expect(nearPlains[0].id).toBe('p1');
+
+      const nearForest = world.getPlayersNear({ x: 10, y: 10 }, 5, ZoneId.DarkForest);
+      expect(nearForest).toHaveLength(1);
+      expect(nearForest[0].id).toBe('p2');
     });
 
-    it('should NOT send entity updates across zones', () => {
-      // TODO: Test entity update filtering
-      // const player1Id = 'player-1';
-      // const player2Id = 'player-2';
-      // const mobId = 'mob-1';
-      // 
-      // zoneManager.addPlayerToZone(player1Id, ZoneId.DarkForest);
-      // zoneManager.addPlayerToZone(player2Id, ZoneId.StarterPlains);
-      // zoneManager.addMobToZone(mobId, ZoneId.DarkForest);
-      // 
-      // const updateSpy = vi.fn();
-      // networkManager.on('entityUpdate', updateSpy);
-      // 
-      // // Mob moves in Dark Forest
-      // mobAI.updateMobPosition(mobId, { x: 60, y: 60 });
-      // 
-      // // Only player1 should receive update
-      // expect(updateSpy).toHaveBeenCalledWith(player1Id, expect.anything());
-      // expect(updateSpy).not.toHaveBeenCalledWith(player2Id, expect.anything());
-      expect(true).toBe(true); // placeholder
+    it('should scope getMobsNear to a specific zone', () => {
+      const mob1 = new Mob(MobType.Goblin, { x: 10, y: 10 }, 30, ZoneId.StarterPlains);
+      const mob2 = new Mob(MobType.Wolf, { x: 10, y: 10 }, 30, ZoneId.DarkForest);
+
+      world.addMob(mob1, ZoneId.StarterPlains);
+      world.addMob(mob2, ZoneId.DarkForest);
+
+      const nearPlains = world.getMobsNear({ x: 10, y: 10 }, 5, ZoneId.StarterPlains);
+      expect(nearPlains).toHaveLength(1);
+      expect(nearPlains[0].id).toBe(mob1.id);
+
+      const nearForest = world.getMobsNear({ x: 10, y: 10 }, 5, ZoneId.DarkForest);
+      expect(nearForest).toHaveLength(1);
+      expect(nearForest[0].id).toBe(mob2.id);
     });
 
-    it('should scope chat messages to zone', () => {
-      // TODO: Test zone chat scoping
-      // const player1Id = 'player-1';
-      // const player2Id = 'player-2';
-      // const player3Id = 'player-3';
-      // 
-      // zoneManager.addPlayerToZone(player1Id, ZoneId.StarterPlains);
-      // zoneManager.addPlayerToZone(player2Id, ZoneId.StarterPlains);
-      // zoneManager.addPlayerToZone(player3Id, ZoneId.DarkForest);
-      // 
-      // const chatReceivedSpy = vi.fn();
-      // 
-      // chatSystem.sendMessage(player1Id, ChatChannel.Say, 'Hello zone!');
-      // 
-      // // Player2 should receive (same zone), Player3 should not (different zone)
-      expect(true).toBe(true); // placeholder
-    });
-
-    it('should update all players in zone when mob dies', () => {
-      // TODO: Test death broadcast scoping
-      // const player1Id = 'player-1';
-      // const player2Id = 'player-2';
-      // const mobId = 'mob-1';
-      // 
-      // zoneManager.addPlayerToZone(player1Id, ZoneId.DarkForest);
-      // zoneManager.addPlayerToZone(player2Id, ZoneId.StarterPlains);
-      // zoneManager.addMobToZone(mobId, ZoneId.DarkForest);
-      // 
-      // const deathSpy = vi.fn();
-      // networkManager.on('entityDeath', deathSpy);
-      // 
-      // combatSystem.killEntity(mobId);
-      // 
-      // // Only player1 should be notified
-      expect(true).toBe(true); // placeholder
+    it('should use zone-specific collision maps', () => {
+      // AncientDungeon is 40x40, so coordinate 45 is out of bounds
+      expect(world.isCollision(45, 45, ZoneId.AncientDungeon)).toBe(true);
+      // But 45,45 is valid in DarkForest (60x60)
+      expect(world.isCollision(45, 45, ZoneId.DarkForest)).toBe(false);
     });
   });
 
   describe('Zone State Independence', () => {
-    it('should maintain independent mob spawn states per zone', () => {
-      // TODO: Test spawn independence
-      // const plainsMobs = zoneManager.getMobsInZone(ZoneId.StarterPlains);
-      // const forestMobs = zoneManager.getMobsInZone(ZoneId.DarkForest);
-      // 
-      // // Spawns should be independent
-      // expect(plainsMobs).not.toEqual(forestMobs);
-      expect(true).toBe(true); // placeholder
+    it('should maintain independent player maps per zone', () => {
+      const p1 = new Player('p1', 'A', ClassType.Warrior);
+      p1.currentZone = ZoneId.StarterPlains;
+      const p2 = new Player('p2', 'B', ClassType.Mage);
+      p2.currentZone = ZoneId.DarkForest;
+
+      world.addPlayer(p1);
+      world.addPlayer(p2);
+
+      const plainsZone = zm.getZone(ZoneId.StarterPlains)!;
+      const forestZone = zm.getZone(ZoneId.DarkForest)!;
+
+      expect(plainsZone.players.size).toBe(1);
+      expect(forestZone.players.size).toBe(1);
+      expect(plainsZone.players.has('p2')).toBe(false);
+      expect(forestZone.players.has('p1')).toBe(false);
     });
 
-    it('should handle zone events independently', () => {
-      // TODO: Test event isolation
-      // An event in one zone should not affect another
-      expect(true).toBe(true); // placeholder
+    it('should maintain independent mob maps per zone', () => {
+      const mob1 = new Mob(MobType.Goblin, { x: 10, y: 10 }, 30, ZoneId.StarterPlains);
+      const mob2 = new Mob(MobType.BoneLord, { x: 20, y: 20 }, 600, ZoneId.AncientDungeon);
+
+      world.addMob(mob1, ZoneId.StarterPlains);
+      world.addMob(mob2, ZoneId.AncientDungeon);
+
+      expect(zm.getMobsInZone(ZoneId.StarterPlains)).toHaveLength(1);
+      expect(zm.getMobsInZone(ZoneId.AncientDungeon)).toHaveLength(1);
+      expect(zm.getMobsInZone(ZoneId.DarkForest)).toHaveLength(0);
     });
   });
 
   describe('Edge Cases', () => {
-    it('should handle player in undefined zone gracefully', () => {
-      // TODO: Test undefined zone handling
-      // const playerId = 'player-1';
-      // 
-      // const visiblePlayers = zoneManager.getVisiblePlayersFor(playerId);
-      // expect(visiblePlayers).toEqual([]);
-      expect(true).toBe(true); // placeholder
+    it('should track player in correct final zone after rapid transitions', () => {
+      const player = new Player('p1', 'Speedster', ClassType.Rogue);
+      player.currentZone = ZoneId.StarterPlains;
+      world.addPlayer(player);
+
+      world.changePlayerZone(player, ZoneId.DarkForest, { x: 5, y: 30 });
+      world.changePlayerZone(player, ZoneId.AncientDungeon, { x: 20, y: 38 });
+
+      expect(zm.getPlayersInZone(ZoneId.StarterPlains)).toHaveLength(0);
+      expect(zm.getPlayersInZone(ZoneId.DarkForest)).toHaveLength(0);
+      expect(zm.getPlayersInZone(ZoneId.AncientDungeon)).toHaveLength(1);
+      expect(player.currentZone).toBe(ZoneId.AncientDungeon);
     });
 
-    it('should prevent leaking entity data across zones during rapid transitions', () => {
-      // TODO: Test rapid zone changes (race condition)
-      // const playerId = 'player-1';
-      // 
-      // zoneManager.movePlayerToZone(playerId, ZoneId.StarterPlains);
-      // zoneManager.movePlayerToZone(playerId, ZoneId.DarkForest);
-      // zoneManager.movePlayerToZone(playerId, ZoneId.AncientDungeon);
-      // 
-      // // Player should only exist in final zone
-      // const plainsPlayers = zoneManager.getPlayersInZone(ZoneId.StarterPlains);
-      // const forestPlayers = zoneManager.getPlayersInZone(ZoneId.DarkForest);
-      // const dungeonPlayers = zoneManager.getPlayersInZone(ZoneId.AncientDungeon);
-      // 
-      // expect(plainsPlayers).not.toContain(playerId);
-      // expect(forestPlayers).not.toContain(playerId);
-      // expect(dungeonPlayers).toContain(playerId);
-      expect(true).toBe(true); // placeholder
+    it('should correctly remove player from world across zones', () => {
+      const player = new Player('p1', 'Alice', ClassType.Warrior);
+      player.currentZone = ZoneId.DarkForest;
+      world.addPlayer(player);
+
+      const removed = world.removePlayer('p1');
+      expect(removed).toBeDefined();
+      expect(removed!.id).toBe('p1');
+      expect(zm.getPlayersInZone(ZoneId.DarkForest)).toHaveLength(0);
+    });
+
+    it('should return correct zone for a player via getPlayerZone', () => {
+      const player = new Player('p1', 'Alice', ClassType.Warrior);
+      player.currentZone = ZoneId.AncientDungeon;
+      world.addPlayer(player);
+
+      expect(world.getPlayerZone('p1')).toBe(ZoneId.AncientDungeon);
+      expect(world.getPlayerZone('nonexistent')).toBeUndefined();
+    });
+
+    it('should return correct zone for a mob via getMobZone', () => {
+      const mob = new Mob(MobType.BoneLord, { x: 20, y: 20 }, 600, ZoneId.AncientDungeon);
+      world.addMob(mob, ZoneId.AncientDungeon);
+
+      expect(world.getMobZone(mob.id)).toBe(ZoneId.AncientDungeon);
+      expect(world.getMobZone('nonexistent')).toBeUndefined();
     });
   });
 });

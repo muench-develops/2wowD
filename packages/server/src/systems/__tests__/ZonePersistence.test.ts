@@ -1,263 +1,306 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { ZoneId, ClassType } from '@isoheim/shared';
-import Database from 'better-sqlite3';
-// TODO: Import database manager and player creation utilities once implemented
-// import { DatabaseManager } from '../../database/DatabaseManager.js';
+import { ZoneId, ClassType, ZONE_PLAYER_SPAWNS } from '@isoheim/shared';
+import { Player } from '../../entities/Player.js';
+import { AuthManager } from '../../auth/AuthManager.js';
+import { Database } from '../../database/Database.js';
+import path from 'path';
+import fs from 'fs';
+import os from 'os';
 
 describe('ZonePersistence', () => {
-  // TODO: Uncomment when database utilities are implemented
-  // let db: Database.Database;
-  // let dbManager: DatabaseManager;
+  let db: Database;
+  let auth: AuthManager;
+  let dbPath: string;
 
   beforeEach(() => {
-    // TODO: Create in-memory test database
-    // db = new Database(':memory:');
-    // dbManager = new DatabaseManager(db);
-    // dbManager.initialize();
+    dbPath = path.join(os.tmpdir(), `test-${Date.now()}-${Math.random().toString(36).slice(2)}.db`);
+    db = new Database(dbPath);
+    auth = new AuthManager(db);
   });
 
   afterEach(() => {
-    // TODO: Clean up test database
-    // db.close();
+    db.close();
+    try { fs.unlinkSync(dbPath); } catch {}
+    try { fs.unlinkSync(dbPath + '-wal'); } catch {}
+    try { fs.unlinkSync(dbPath + '-shm'); } catch {}
   });
 
+  function createTestAccount(username = 'testuser'): string {
+    auth.register(username, 'password1234');
+    const result = auth.login('session-1', username, 'password1234');
+    return result.accountId!;
+  }
+
   describe('Zone Saving to Database', () => {
-    it('should save player zone on zone change', () => {
-      // TODO: Test zone save on transition
-      // const accountId = 'account-1';
-      // const characterId = 'char-1';
-      // 
-      // dbManager.createCharacter(accountId, 'TestWarrior', ClassType.Warrior);
-      // 
-      // // Change zone
-      // dbManager.updateCharacterZone(characterId, ZoneId.DarkForest);
-      // 
-      // // Verify saved
-      // const character = dbManager.getCharacter(characterId);
-      // expect(character.currentZone).toBe(ZoneId.DarkForest);
-      expect(true).toBe(true); // placeholder
+    it('should save player currentZone via toCharacterSaveData', () => {
+      const player = new Player('sess-1', 'Alice', ClassType.Warrior);
+      player.characterId = 'char-1';
+      player.currentZone = ZoneId.DarkForest;
+
+      const saveData = player.toCharacterSaveData();
+      expect(saveData.currentZone).toBe(ZoneId.DarkForest);
     });
 
-    it('should update zone in database immediately on transition', () => {
-      // TODO: Test immediate DB write (not deferred)
-      // const characterId = 'char-1';
-      // 
-      // dbManager.updateCharacterZone(characterId, ZoneId.AncientDungeon);
-      // 
-      // // Direct DB query to verify
-      // const stmt = db.prepare('SELECT currentZone FROM characters WHERE id = ?');
-      // const row = stmt.get(characterId);
-      // expect(row.currentZone).toBe(ZoneId.AncientDungeon);
-      expect(true).toBe(true); // placeholder
+    it('should persist zone change via db.saveCharacter', () => {
+      const accountId = createTestAccount();
+      const result = auth.createCharacter('session-1', 'TestWarrior', ClassType.Warrior);
+      const charId = result.character!.id;
+
+      // Create player object and change zone
+      const charInfo = auth.selectCharacter('session-1', charId)!;
+      const player = Player.fromCharacterInfo('sess-1', charInfo);
+      player.currentZone = ZoneId.DarkForest;
+      player.position.x = 5;
+      player.position.y = 30;
+      db.saveCharacter(player.toCharacterSaveData());
+
+      // Reload and verify
+      const row = db.getCharacter(charId);
+      expect(row).not.toBeNull();
+      expect(row!.current_zone).toBe(ZoneId.DarkForest);
     });
 
-    it('should save player position along with zone', () => {
-      // TODO: Test position persistence
-      // const characterId = 'char-1';
-      // const newZone = ZoneId.DarkForest;
-      // const newPosition = { x: 50, y: 50 };
-      // 
-      // dbManager.updateCharacterZoneAndPosition(characterId, newZone, newPosition);
-      // 
-      // const character = dbManager.getCharacter(characterId);
-      // expect(character.currentZone).toBe(newZone);
-      // expect(character.position.x).toBe(newPosition.x);
-      // expect(character.position.y).toBe(newPosition.y);
-      expect(true).toBe(true); // placeholder
+    it('should save position along with zone', () => {
+      const accountId = createTestAccount();
+      auth.createCharacter('session-1', 'TestMage', ClassType.Mage);
+      const chars = auth.login('session-2', 'testuser', 'password1234').characters!;
+      const charId = chars[0].id;
+
+      const charInfo = auth.selectCharacter('session-2', charId)!;
+      const player = Player.fromCharacterInfo('sess-1', charInfo);
+      player.currentZone = ZoneId.AncientDungeon;
+      player.position.x = 20;
+      player.position.y = 38;
+      db.saveCharacter(player.toCharacterSaveData());
+
+      const row = db.getCharacter(charId);
+      expect(row!.pos_x).toBe(20);
+      expect(row!.pos_y).toBe(38);
+      expect(row!.current_zone).toBe(ZoneId.AncientDungeon);
     });
   });
 
   describe('Zone Loading from Database', () => {
-    it('should load player into correct zone on login', () => {
-      // TODO: Test zone restoration on login
-      // const accountId = 'account-1';
-      // const characterId = 'char-1';
-      // 
-      // dbManager.createCharacter(accountId, 'TestMage', ClassType.Mage);
-      // dbManager.updateCharacterZone(characterId, ZoneId.DarkForest);
-      // 
-      // // Simulate logout/login
-      // const character = dbManager.getCharacter(characterId);
-      // expect(character.currentZone).toBe(ZoneId.DarkForest);
-      expect(true).toBe(true); // placeholder
+    it('should load player into correct zone on character select', () => {
+      const accountId = createTestAccount();
+      auth.createCharacter('session-1', 'LoadTest', ClassType.Warrior);
+      const chars = auth.login('session-load', 'testuser', 'password1234').characters!;
+      const charId = chars[0].id;
+
+      // Save with Dark Forest
+      const charInfo = auth.selectCharacter('session-load', charId)!;
+      const player = Player.fromCharacterInfo('s1', charInfo);
+      player.currentZone = ZoneId.DarkForest;
+      db.saveCharacter(player.toCharacterSaveData());
+
+      // Reload via selectCharacter
+      auth.login('session-load2', 'testuser', 'password1234');
+      const reloaded = auth.selectCharacter('session-load2', charId)!;
+      expect(reloaded.currentZone).toBe(ZoneId.DarkForest);
     });
 
-    it('should restore player position on login', () => {
-      // TODO: Test position restoration
-      // const characterId = 'char-1';
-      // const savedZone = ZoneId.AncientDungeon;
-      // const savedPosition = { x: 75, y: 80 };
-      // 
-      // dbManager.updateCharacterZoneAndPosition(characterId, savedZone, savedPosition);
-      // 
-      // const character = dbManager.getCharacter(characterId);
-      // expect(character.position.x).toBe(savedPosition.x);
-      // expect(character.position.y).toBe(savedPosition.y);
-      expect(true).toBe(true); // placeholder
+    it('should restore zone in Player.fromCharacterInfo', () => {
+      const accountId = createTestAccount();
+      auth.createCharacter('session-1', 'FromChar', ClassType.Rogue);
+      const chars = auth.login('session-fc', 'testuser', 'password1234').characters!;
+      const charId = chars[0].id;
+
+      const charInfo = auth.selectCharacter('session-fc', charId)!;
+      const player = Player.fromCharacterInfo('s1', charInfo);
+      player.currentZone = ZoneId.AncientDungeon;
+      db.saveCharacter(player.toCharacterSaveData());
+
+      // Reload
+      auth.login('session-fc2', 'testuser', 'password1234');
+      const reloadedInfo = auth.selectCharacter('session-fc2', charId)!;
+      const reloadedPlayer = Player.fromCharacterInfo('s2', reloadedInfo);
+      expect(reloadedPlayer.currentZone).toBe(ZoneId.AncientDungeon);
     });
 
     it('should handle multiple characters with different zones', () => {
-      // TODO: Test multi-character zone persistence
-      // const accountId = 'account-1';
-      // 
-      // const char1 = dbManager.createCharacter(accountId, 'Warrior1', ClassType.Warrior);
-      // const char2 = dbManager.createCharacter(accountId, 'Mage1', ClassType.Mage);
-      // 
-      // dbManager.updateCharacterZone(char1.id, ZoneId.StarterPlains);
-      // dbManager.updateCharacterZone(char2.id, ZoneId.DarkForest);
-      // 
-      // const character1 = dbManager.getCharacter(char1.id);
-      // const character2 = dbManager.getCharacter(char2.id);
-      // 
-      // expect(character1.currentZone).toBe(ZoneId.StarterPlains);
-      // expect(character2.currentZone).toBe(ZoneId.DarkForest);
-      expect(true).toBe(true); // placeholder
+      const accountId = createTestAccount();
+      auth.createCharacter('session-1', 'Char1', ClassType.Warrior);
+      auth.createCharacter('session-1', 'Char2', ClassType.Mage);
+
+      const loginResult = auth.login('session-multi', 'testuser', 'password1234');
+      const char1Id = loginResult.characters![0].id;
+      const char2Id = loginResult.characters![1].id;
+
+      // Save char1 to DarkForest, char2 to AncientDungeon
+      const info1 = auth.selectCharacter('session-multi', char1Id)!;
+      const p1 = Player.fromCharacterInfo('s1', info1);
+      p1.currentZone = ZoneId.DarkForest;
+      db.saveCharacter(p1.toCharacterSaveData());
+
+      auth.login('session-multi2', 'testuser', 'password1234');
+      const info2 = auth.selectCharacter('session-multi2', char2Id)!;
+      const p2 = Player.fromCharacterInfo('s2', info2);
+      p2.currentZone = ZoneId.AncientDungeon;
+      db.saveCharacter(p2.toCharacterSaveData());
+
+      // Reload both
+      auth.login('session-verify', 'testuser', 'password1234');
+      const r1 = auth.selectCharacter('session-verify', char1Id)!;
+      const r2 = auth.selectCharacter('session-verify', char2Id)!;
+      expect(r1.currentZone).toBe(ZoneId.DarkForest);
+      expect(r2.currentZone).toBe(ZoneId.AncientDungeon);
     });
   });
 
   describe('Default Zone for New Characters', () => {
-    it('should spawn new characters in Starter Plains', () => {
-      // TODO: Test default zone assignment
-      // const accountId = 'account-1';
-      // const character = dbManager.createCharacter(accountId, 'NewWarrior', ClassType.Warrior);
-      // 
-      // expect(character.currentZone).toBe(ZoneId.StarterPlains);
-      expect(true).toBe(true); // placeholder
+    it('should spawn new characters in starter-plains', () => {
+      const accountId = createTestAccount();
+      auth.createCharacter('session-1', 'NewWarrior', ClassType.Warrior);
+      const chars = auth.login('session-new', 'testuser', 'password1234').characters!;
+
+      const info = auth.selectCharacter('session-new', chars[0].id)!;
+      expect(info.currentZone).toBe(ZoneId.StarterPlains);
     });
 
-    it('should use default spawn position for new characters', () => {
-      // TODO: Test default spawn position
-      // const accountId = 'account-1';
-      // const character = dbManager.createCharacter(accountId, 'NewRogue', ClassType.Rogue);
-      // 
-      // // Default spawn should be defined in ZONE_METADATA
-      // const defaultSpawn = ZONE_METADATA[ZoneId.StarterPlains].playerSpawn;
-      // expect(character.position.x).toBe(defaultSpawn.x);
-      // expect(character.position.y).toBe(defaultSpawn.y);
-      expect(true).toBe(true); // placeholder
+    it('should use default spawn position (25,25) for new characters', () => {
+      const accountId = createTestAccount();
+      auth.createCharacter('session-1', 'NewRogue', ClassType.Rogue);
+      const chars = auth.login('session-pos', 'testuser', 'password1234').characters!;
+
+      const row = db.getCharacter(chars[0].id);
+      expect(row!.pos_x).toBe(25);
+      expect(row!.pos_y).toBe(25);
     });
 
     it('should create all new characters in same default zone', () => {
-      // TODO: Test consistency across character creation
-      // const accountId = 'account-1';
-      // 
-      // const char1 = dbManager.createCharacter(accountId, 'Warrior', ClassType.Warrior);
-      // const char2 = dbManager.createCharacter(accountId, 'Mage', ClassType.Mage);
-      // const char3 = dbManager.createCharacter(accountId, 'Rogue', ClassType.Rogue);
-      // 
-      // expect(char1.currentZone).toBe(ZoneId.StarterPlains);
-      // expect(char2.currentZone).toBe(ZoneId.StarterPlains);
-      // expect(char3.currentZone).toBe(ZoneId.StarterPlains);
-      expect(true).toBe(true); // placeholder
+      const accountId = createTestAccount();
+      auth.createCharacter('session-1', 'C1', ClassType.Warrior);
+      auth.createCharacter('session-1', 'C2', ClassType.Mage);
+      auth.createCharacter('session-1', 'C3', ClassType.Rogue);
+
+      const chars = auth.login('session-all', 'testuser', 'password1234').characters!;
+      for (const c of chars) {
+        const info = auth.selectCharacter('session-all', c.id)!;
+        expect(info.currentZone).toBe(ZoneId.StarterPlains);
+      }
     });
   });
 
-  describe('Edge Cases and Error Handling', () => {
-    it('should fallback to default zone for corrupted zone data', () => {
-      // TODO: Test corrupted data handling
-      // const characterId = 'char-1';
-      // 
-      // // Manually corrupt zone data in DB
-      // const stmt = db.prepare('UPDATE characters SET currentZone = ? WHERE id = ?');
-      // stmt.run('invalid-zone-data', characterId);
-      // 
-      // // Should fallback to Starter Plains
-      // const character = dbManager.getCharacter(characterId);
-      // expect(character.currentZone).toBe(ZoneId.StarterPlains);
-      expect(true).toBe(true); // placeholder
+  describe('Invalid Zone Handling', () => {
+    it('should default to StarterPlains for invalid zone in DB', () => {
+      const accountId = createTestAccount();
+      auth.createCharacter('session-1', 'CorruptChar', ClassType.Priest);
+      const chars = auth.login('session-corrupt', 'testuser', 'password1234').characters!;
+      const charId = chars[0].id;
+
+      // Manually corrupt zone in DB
+      const info = auth.selectCharacter('session-corrupt', charId)!;
+      const player = Player.fromCharacterInfo('s1', info);
+      player.currentZone = 'invalid-zone' as ZoneId;
+      db.saveCharacter(player.toCharacterSaveData());
+
+      // AuthManager.rowToCharacterInfo should fallback to StarterPlains
+      auth.login('session-recover', 'testuser', 'password1234');
+      const recovered = auth.selectCharacter('session-recover', charId)!;
+      expect(recovered.currentZone).toBe(ZoneId.StarterPlains);
     });
 
-    it('should fallback to default zone for null zone data', () => {
-      // TODO: Test null zone handling
-      // const characterId = 'char-1';
-      // 
-      // // Set zone to null
-      // const stmt = db.prepare('UPDATE characters SET currentZone = NULL WHERE id = ?');
-      // stmt.run(characterId);
-      // 
-      // const character = dbManager.getCharacter(characterId);
-      // expect(character.currentZone).toBe(ZoneId.StarterPlains);
-      expect(true).toBe(true); // placeholder
-    });
+    it('should handle null-like zone via fromCharacterInfo', () => {
+      // CharacterInfo with undefined zone should default to StarterPlains
+      const charInfo = {
+        id: 'c1',
+        accountId: 'a1',
+        name: 'Test',
+        classType: ClassType.Warrior,
+        level: 1,
+        xp: 0,
+        posX: 25,
+        posY: 25,
+        health: 200,
+        mana: 50,
+        createdAt: Date.now(),
+        lastPlayed: Date.now(),
+        currentZone: undefined,
+      };
 
-    it('should handle database write failures gracefully', () => {
-      // TODO: Test DB write error handling
-      // const characterId = 'char-1';
-      // 
-      // // Close DB to force write failure
-      // db.close();
-      // 
-      // expect(() => {
-      //   dbManager.updateCharacterZone(characterId, ZoneId.DarkForest);
-      // }).not.toThrow(); // Should log error but not crash
-      expect(true).toBe(true); // placeholder
-    });
-
-    it('should handle concurrent zone updates for same character', () => {
-      // TODO: Test race condition on zone updates
-      // const characterId = 'char-1';
-      // 
-      // // Simulate rapid zone changes (should use last write wins)
-      // dbManager.updateCharacterZone(characterId, ZoneId.StarterPlains);
-      // dbManager.updateCharacterZone(characterId, ZoneId.DarkForest);
-      // dbManager.updateCharacterZone(characterId, ZoneId.AncientDungeon);
-      // 
-      // const character = dbManager.getCharacter(characterId);
-      // expect(character.currentZone).toBe(ZoneId.AncientDungeon);
-      expect(true).toBe(true); // placeholder
-    });
-
-    it('should preserve zone data across server restarts', () => {
-      // TODO: Test persistence across DB close/reopen
-      // const accountId = 'account-1';
-      // const characterId = 'char-1';
-      // 
-      // dbManager.createCharacter(accountId, 'TestPriest', ClassType.Priest);
-      // dbManager.updateCharacterZone(characterId, ZoneId.DarkForest);
-      // 
-      // // Close and reopen database
-      // const dbPath = ':memory:'; // In real test, use temp file
-      // db.close();
-      // db = new Database(dbPath);
-      // dbManager = new DatabaseManager(db);
-      // 
-      // const character = dbManager.getCharacter(characterId);
-      // expect(character.currentZone).toBe(ZoneId.DarkForest);
-      expect(true).toBe(true); // placeholder
-    });
-
-    it('should handle missing character ID gracefully', () => {
-      // TODO: Test non-existent character
-      // const character = dbManager.getCharacter('non-existent-id');
-      // expect(character).toBeNull();
-      expect(true).toBe(true); // placeholder
-    });
-
-    it('should validate zone ID before saving', () => {
-      // TODO: Test invalid zone ID rejection
-      // const characterId = 'char-1';
-      // 
-      // const result = dbManager.updateCharacterZone(characterId, 'invalid-zone' as ZoneId);
-      // expect(result.success).toBe(false);
-      // 
-      // // Zone should remain unchanged
-      // const character = dbManager.getCharacter(characterId);
-      // expect(character.currentZone).toBe(ZoneId.StarterPlains); // Default
-      expect(true).toBe(true); // placeholder
+      const player = Player.fromCharacterInfo('s1', charInfo as any);
+      expect(player.currentZone).toBe(ZoneId.StarterPlains);
     });
   });
 
-  describe('Zone Migration Support', () => {
-    it('should handle database schema updates for zones', () => {
-      // TODO: Test schema migration (if new zones added)
-      // This is important for future zone additions
-      expect(true).toBe(true); // placeholder
+  describe('Zone Survives Save/Load Cycle', () => {
+    it('should preserve zone data across DB close/reopen', () => {
+      const accountId = createTestAccount();
+      auth.createCharacter('session-1', 'PersistChar', ClassType.Warrior);
+      const chars = auth.login('session-persist', 'testuser', 'password1234').characters!;
+      const charId = chars[0].id;
+
+      // Save to Dark Forest
+      const info = auth.selectCharacter('session-persist', charId)!;
+      const player = Player.fromCharacterInfo('s1', info);
+      player.currentZone = ZoneId.DarkForest;
+      player.position.x = 5;
+      player.position.y = 30;
+      db.saveCharacter(player.toCharacterSaveData());
+
+      // Close and reopen
+      db.close();
+      db = new Database(dbPath);
+      auth = new AuthManager(db);
+
+      // Verify persisted
+      auth.register('testuser2', 'password1234');
+      // Use direct DB query since we recreated the auth manager
+      const row = db.getCharacter(charId);
+      expect(row).not.toBeNull();
+      expect(row!.current_zone).toBe(ZoneId.DarkForest);
+      expect(row!.pos_x).toBe(5);
+      expect(row!.pos_y).toBe(30);
     });
 
-    it('should support adding new zones without breaking existing data', () => {
-      // TODO: Test backward compatibility
-      // When new zones are added, existing characters should not be affected
-      expect(true).toBe(true); // placeholder
+    it('should handle rapid zone updates (last write wins)', () => {
+      const accountId = createTestAccount();
+      auth.createCharacter('session-1', 'RapidChar', ClassType.Rogue);
+      const chars = auth.login('session-rapid', 'testuser', 'password1234').characters!;
+      const charId = chars[0].id;
+
+      const info = auth.selectCharacter('session-rapid', charId)!;
+      const player = Player.fromCharacterInfo('s1', info);
+
+      // Rapid zone changes
+      player.currentZone = ZoneId.StarterPlains;
+      db.saveCharacter(player.toCharacterSaveData());
+      player.currentZone = ZoneId.DarkForest;
+      db.saveCharacter(player.toCharacterSaveData());
+      player.currentZone = ZoneId.AncientDungeon;
+      db.saveCharacter(player.toCharacterSaveData());
+
+      const row = db.getCharacter(charId);
+      expect(row!.current_zone).toBe(ZoneId.AncientDungeon);
+    });
+  });
+
+  describe('Player Respawn Uses Zone Spawn Point', () => {
+    it('should respawn player at current zone spawn point', () => {
+      const player = new Player('s1', 'Alice', ClassType.Warrior);
+      player.currentZone = ZoneId.DarkForest;
+      player.position.x = 30;
+      player.position.y = 40;
+      player.die();
+      player.respawn();
+
+      const spawn = ZONE_PLAYER_SPAWNS[ZoneId.DarkForest];
+      expect(player.position.x).toBe(spawn.x);
+      expect(player.position.y).toBe(spawn.y);
+      expect(player.isDead).toBe(false);
+    });
+
+    it('should respawn at correct spawn for each zone', () => {
+      for (const zoneId of Object.values(ZoneId)) {
+        const player = new Player('s1', 'Test', ClassType.Mage);
+        player.currentZone = zoneId;
+        player.die();
+        player.respawn();
+
+        const expectedSpawn = ZONE_PLAYER_SPAWNS[zoneId];
+        expect(player.position.x).toBe(expectedSpawn.x);
+        expect(player.position.y).toBe(expectedSpawn.y);
+      }
     });
   });
 });
