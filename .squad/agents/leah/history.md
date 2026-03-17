@@ -15,3 +15,4 @@
 - Projectile VFX (fireball, frost bolt) use trail particles + impact burst; color-parameterized shared method
 - All VFX auto-destroy via tween onComplete callbacks — no manual cleanup needed
 - BootScene generates a 4×4 'particle' texture for potential future particle emitter use
+- PR #15 Clean Code refactoring: Extracted large functions (render 49 lines → 9 methods), eliminated magic numbers (30+ constants), fixed abbreviations (s/W/H/bg/txt → descriptive names), added event handler cleanup (Map-based tracking), enhanced error handling (try-catch localStorage), applied DRY (drawArrowTriangle helper). Key learnings: Event handler memory leaks prevented via Map tracking in destroy(), all literals named for maintainability, functions under ~20 lines for readability.
