@@ -167,6 +167,17 @@ export class GameScene extends Phaser.Scene {
 
     this.events.emit('updatePlayerHealth', msg.player.health, msg.player.maxHealth);
     this.events.emit('updatePlayerMana', msg.player.mana, msg.player.maxMana);
+    this.events.emit('updateCharacterStats', {
+      name: msg.player.name,
+      classType: this.classType,
+      level: msg.player.level,
+      health: msg.player.health,
+      maxHealth: msg.player.maxHealth,
+      mana: msg.player.mana,
+      maxMana: msg.player.maxMana,
+      xp: msg.player.xp,
+      xpToNextLevel: msg.player.xpToNextLevel,
+    });
 
     // Snap camera to player immediately on join
     const zoneMeta = ZONE_METADATA[this.currentZone];
@@ -205,6 +216,17 @@ export class GameScene extends Phaser.Scene {
           this.events.emit('updatePlayerMana', ps.mana, ps.maxMana);
           this.events.emit('updatePlayerXp', ps.xp, ps.xpToNextLevel);
           this.events.emit('updateBuffs', ps.buffs ?? []);
+          this.events.emit('updateCharacterStats', {
+            name: ps.name,
+            classType: this.classType,
+            level: ps.level,
+            health: ps.health,
+            maxHealth: ps.maxHealth,
+            mana: ps.mana,
+            maxMana: ps.maxMana,
+            xp: ps.xp,
+            xpToNextLevel: ps.xpToNextLevel,
+          });
         }
 
         // Update target frame if this is our target
@@ -252,11 +274,12 @@ export class GameScene extends Phaser.Scene {
         // Re-apply pending moves from server position
         this.localWorldX = msg.position.x;
         this.localWorldY = msg.position.y;
+        const replayZoneMeta = ZONE_METADATA[this.currentZone];
         for (const pm of this.pendingMoves) {
           const speed = CLASS_STATS[this.classType].speed;
           const dt = TICK_INTERVAL / 1000;
-          this.localWorldX += pm.dx * speed * dt;
-          this.localWorldY += pm.dy * speed * dt;
+          this.localWorldX = Math.max(1, Math.min(replayZoneMeta.width - 2, this.localWorldX + pm.dx * speed * dt));
+          this.localWorldY = Math.max(1, Math.min(replayZoneMeta.height - 2, this.localWorldY + pm.dy * speed * dt));
         }
         if (this.localPlayer) {
           this.localPlayer.setWorldPosition(this.localWorldX, this.localWorldY);
@@ -411,6 +434,7 @@ export class GameScene extends Phaser.Scene {
 
     this.net.on(ServerMessageType.Error, (msg: { message: string }) => {
       console.error('[Server Error]', msg.message);
+      this.events.emit('showErrorMessage', msg.message);
     });
 
     this.net.on(ServerMessageType.InventoryUpdate, (msg: InventoryUpdateMessage) => {
@@ -432,7 +456,7 @@ export class GameScene extends Phaser.Scene {
       const loot = this.worldLoots.get(msg.lootId);
       if (loot) {
         this.events.emit('lootItemRemoved', msg.lootId, msg.itemIndex);
-        loot.items.splice(msg.itemIndex, 1);
+        // LootWindow.removeItem() owns the splice on the shared items array
         if (loot.items.length === 0) {
           this.worldLoots.delete(msg.lootId);
           this.removeLootSprite(msg.lootId);
@@ -792,8 +816,9 @@ export class GameScene extends Phaser.Scene {
     if ((dir.x !== 0 || dir.y !== 0) && this.localPlayer) {
       const speed = CLASS_STATS[this.classType].speed;
       const dt = delta / 1000;
-      this.localWorldX += dir.x * speed * dt;
-      this.localWorldY += dir.y * speed * dt;
+      const zoneMeta = ZONE_METADATA[this.currentZone];
+      this.localWorldX = Math.max(1, Math.min(zoneMeta.width - 2, this.localWorldX + dir.x * speed * dt));
+      this.localWorldY = Math.max(1, Math.min(zoneMeta.height - 2, this.localWorldY + dir.y * speed * dt));
       this.localPlayer.setWorldPosition(this.localWorldX, this.localWorldY);
 
       this.pendingMoves.push({

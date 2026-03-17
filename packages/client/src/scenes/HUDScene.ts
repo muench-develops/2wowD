@@ -10,6 +10,7 @@ import { Minimap, type MinimapEntityData } from '../ui/Minimap';
 import { EscMenu } from '../ui/EscMenu';
 import { InventoryPanel } from '../ui/InventoryPanel';
 import { LootWindow } from '../ui/LootWindow';
+import { CharacterPanel, type CharacterStatsData } from '../ui/CharacterPanel';
 import { GuideSystem } from '../ui/GuideSystem.js';
 import { NetworkManager } from '../network/NetworkManager';
 import { SoundManager } from '../systems/SoundManager';
@@ -27,6 +28,7 @@ export class HUDScene extends Phaser.Scene {
   private escMenu!: EscMenu;
   private inventoryPanel!: InventoryPanel;
   private lootWindow!: LootWindow;
+  private characterPanel!: CharacterPanel;
   private guideSystem!: GuideSystem;
   private helpButton!: Phaser.GameObjects.Text;
   private latencyText!: Phaser.GameObjects.Text;
@@ -97,6 +99,9 @@ export class HUDScene extends Phaser.Scene {
 
     // Loot window
     this.lootWindow = new LootWindow(this);
+
+    // Character panel
+    this.characterPanel = new CharacterPanel(this);
 
     // Guide system
     this.guideSystem = new GuideSystem(this, this.gameScene);
@@ -236,6 +241,21 @@ export class HUDScene extends Phaser.Scene {
       this.inventoryPanel.updateInventory(inventory);
     });
 
+    // Character panel toggle
+    this.onGameScene('toggleCharacter', () => {
+      this.characterPanel.toggle();
+    });
+
+    // Character stats updates
+    this.onGameScene('updateCharacterStats', (data: CharacterStatsData) => {
+      this.characterPanel.updateStats(data);
+    });
+
+    // Server error messages — show as floating notification
+    this.onGameScene('showErrorMessage', (message: string) => {
+      this.showErrorNotification(message);
+    });
+
     // Loot window
     this.onGameScene('showLoot', (loot: WorldLoot) => {
       this.lootWindow.show(loot);
@@ -279,6 +299,28 @@ export class HUDScene extends Phaser.Scene {
 
   private updateMuteIndicator(): void {
     this.muteIndicator.setText(SoundManager.instance.muted ? '🔇' : '🔊');
+  }
+
+  private showErrorNotification(message: string): void {
+    const errorText = this.add.text(640, 80, message, {
+      fontFamily: 'monospace',
+      fontSize: '16px',
+      color: '#ff6644',
+      stroke: '#000000',
+      strokeThickness: 3,
+    });
+    errorText.setOrigin(0.5).setDepth(2000).setAlpha(1);
+
+    this.tweens.add({
+      targets: errorText,
+      alpha: 0,
+      y: 60,
+      duration: 2500,
+      ease: 'Power2',
+      onComplete: () => {
+        errorText.destroy();
+      },
+    });
   }
 
   update(): void {
