@@ -31,6 +31,10 @@ export {
   type InventoryItem,
   type LootItem,
   type WorldLoot,
+  // Zones
+  ZoneId,
+  type ZoneMetadata,
+  type Portal,
 } from './types.js';
 
 // Constants
@@ -78,6 +82,10 @@ export {
   type LevelStatScaling,
   BUFF_DEFINITIONS,
   ABILITY_BUFF_MAP,
+  // Mob Abilities
+  type MobAbilityDef,
+  MOB_ABILITIES,
+  MOB_ABILITY_MAP,
   // Item System
   INVENTORY_SIZE,
   LOOT_EXPIRY_MS,
@@ -86,6 +94,10 @@ export {
   ITEM_DATABASE,
   type LootTableEntry,
   MOB_LOOT_TABLES,
+  // Zones
+  ZONE_METADATA,
+  ZONE_PLAYER_SPAWNS,
+  ZONE_PORTALS,
 } from './constants.js';
 
 // Protocol
@@ -133,6 +145,9 @@ export {
   type PongMessage,
   type ErrorMessage,
   type ServerMessage,
+  // Zone messages
+  type UsePortalMessage,
+  type ZoneChangedMessage,
   // Item System – Client
   type PickupItemMessage,
   type DropItemMessage,

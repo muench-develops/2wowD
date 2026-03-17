@@ -23,6 +23,31 @@ export enum Direction {
 }
 
 // ============================================================
+// Zones
+// ============================================================
+
+export enum ZoneId {
+  StarterPlains = 'starter-plains',
+  DarkForest = 'dark-forest',
+  AncientDungeon = 'ancient-dungeon',
+}
+
+export interface ZoneMetadata {
+  id: ZoneId;
+  name: string;
+  width: number;
+  height: number;
+  levelRange: [number, number];
+  tilePalette: string;
+}
+
+export interface Portal {
+  position: Vec2;
+  targetZone: ZoneId;
+  targetSpawnPoint: Vec2;
+}
+
+// ============================================================
 // Character Classes
 // ============================================================
 
@@ -86,12 +111,18 @@ export interface PlayerState extends Entity {
   isDead: boolean;
   targetId: string | null;
   buffs: BuffState[];
+  currentZone: ZoneId;
 }
 
 export enum MobType {
   Goblin = 'goblin',
   Skeleton = 'skeleton',
   Wolf = 'wolf',
+  Spider = 'spider',
+  Bandit = 'bandit',
+  WolfAlpha = 'wolf-alpha',
+  SkeletonMage = 'skeleton-mage',
+  BoneLord = 'bone-lord',
 }
 
 export interface MobState extends Entity {
@@ -179,6 +210,7 @@ export enum TileType {
   Dirt = 1,
   Stone = 2,
   Water = 3,
+  Portal = 4,
 }
 
 export interface MapData {
@@ -188,6 +220,8 @@ export interface MapData {
   collisions: boolean[][];
   spawnPoints: SpawnPoint[];
   playerSpawn: Vec2;
+  zone?: ZoneMetadata;
+  portals?: Portal[];
 }
 
 export interface SpawnPoint {
@@ -221,7 +255,7 @@ export interface CharacterInfo {
   mana: number;
   createdAt: number;
   lastPlayed: number;
-
+  currentZone?: ZoneId;
 }
 
 // ============================================================
