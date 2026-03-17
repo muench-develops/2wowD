@@ -8,6 +8,7 @@ import {
   DropItemMessage,
   MoveItemMessage,
   UseItemMessage,
+  ZoneId,
   ITEM_DATABASE,
   LOOT_PICKUP_RANGE,
   distance,
@@ -145,6 +146,10 @@ export class MessageHandler {
 
       case ClientMessageType.UseItem:
         this.handleUseItem(sessionId, message as UseItemMessage);
+        break;
+
+      case ClientMessageType.UsePortal:
+        this.handleUsePortal(sessionId, message.targetZone);
         break;
     }
   }

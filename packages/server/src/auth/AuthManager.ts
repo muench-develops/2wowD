@@ -197,6 +197,7 @@ export class AuthManager {
       posY: row.pos_y,
       health: row.health,
       mana: row.mana,
+      currentZone: row.current_zone as any,
       createdAt: row.created_at,
       lastPlayed: row.last_played,
     };

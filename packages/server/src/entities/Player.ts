@@ -12,6 +12,7 @@ import {
   BuffState,
   CharacterInfo,
   InventoryItem,
+  ZoneId,
   CLASS_STATS,
   CLASS_ABILITIES,
   PLAYER_SPAWN_X,
@@ -64,6 +65,9 @@ export class Player {
   // Inventory
   inventory: InventoryItem[] = [];
 
+  // Zone
+  currentZone: ZoneId = ZoneId.StarterPlains;
+
   constructor(id: string, name: string, classType: ClassType) {
     this.id = id;
     this.name = name;
@@ -91,6 +95,11 @@ export class Player {
     player.characterId = charInfo.id;
     player.level = charInfo.level;
     player.xp = charInfo.xp;
+
+    // Load zone
+    if (charInfo.currentZone) {
+      player.currentZone = charInfo.currentZone;
+    }
 
     // Recalculate stats for level
     if (player.level > 1) {
@@ -122,6 +131,7 @@ export class Player {
     posY: number;
     health: number;
     mana: number;
+    currentZone: string;
   } {
     return {
       id: this.characterId,
@@ -131,6 +141,7 @@ export class Player {
       posY: this.position.y,
       health: this.health,
       mana: this.mana,
+      currentZone: this.currentZone,
     };
   }
 
@@ -328,6 +339,7 @@ export class Player {
       isDead: this.isDead,
       targetId: this.targetId,
       buffs: buffSystem ? buffSystem.getBuffStates(this.id) : [],
+      currentZone: this.currentZone,
     };
   }
 
