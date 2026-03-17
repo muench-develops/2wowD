@@ -53,6 +53,18 @@
 **What:** `VFXManager` singleton in packages/client/src/systems/ for all ability visual effects using Phaser Graphics+Tweens only
 **Why:** Decouple VFX from GameScene, match SoundManager convention, avoid particle emitter API fragility
 
+### 2026-03-17: Clean Code Patterns — UI Components
+**By:** Leah (Frontend Dev)
+**What:** Six patterns for all UI components:
+  1. Event Handler Memory Leak Prevention — Track handlers in Map, unbind in destroy()
+  2. Named Constants Over Magic Numbers — All literals (numbers, colors, strings) as constants
+  3. Function Size Limit — Keep functions ~20 lines, extract into single-purpose helpers
+  4. Intention-Revealing Names — No abbreviations or single-letter variables
+  5. DRY — Replace duplicated logic with parameterized helpers
+  6. Defensive localStorage — Wrap in try-catch with fallbacks (private browsing mode)
+**Context:** Applied to PR #15 refactoring, recommended as team standard for Phase 3 frontend
+**Why:** Prevent memory leaks, improve maintainability, self-documenting code
+
 ## Governance
 
 - All meaningful changes require team consensus
