@@ -15,6 +15,17 @@ import { World } from '../core/World.js';
 import { NetworkManager } from '../network/NetworkManager.js';
 import { BuffSystem } from './BuffSystem.js';
 
+// --- MobAISystem constants ---
+const MS_PER_SECOND = 1000;
+const PATROL_COOLDOWN_BASE_MS = 3000;
+const PATROL_COOLDOWN_RANDOM_MS = 5000;
+const PATROL_MAX_ATTEMPTS = 5;
+const ARRIVAL_THRESHOLD_TILES = 0.3;
+const PATROL_SPEED_MULTIPLIER = 0.5;
+const LEASH_RETURN_SPEED_MULTIPLIER = 1.5;
+const DAMAGE_VARIANCE_MIN = 0.85;
+const DAMAGE_VARIANCE_RANGE = 0.30;
+
 export class MobAISystem {
   private network: NetworkManager;
   private buffSystem: BuffSystem;
@@ -25,7 +36,7 @@ export class MobAISystem {
   }
 
   update(world: World, deltaMs: number, now: number): void {
-    const deltaSeconds = deltaMs / 1000;
+    const deltaSeconds = deltaMs / MS_PER_SECOND;
 
     for (const zone of world.zoneManager.getAllZones()) {
       for (const mob of zone.mobs.values()) {
@@ -77,9 +88,8 @@ export class MobAISystem {
     // Occasionally patrol
     mob.patrolCooldown -= deltaMs;
     if (mob.patrolCooldown <= 0) {
-      mob.patrolCooldown = 3000 + Math.random() * 5000;
-      // Try up to 5 times to find a walkable patrol target
-      for (let attempt = 0; attempt < 5; attempt++) {
+      mob.patrolCooldown = PATROL_COOLDOWN_BASE_MS + Math.random() * PATROL_COOLDOWN_RANDOM_MS;
+      for (let attempt = 0; attempt < PATROL_MAX_ATTEMPTS; attempt++) {
         const angle = Math.random() * Math.PI * 2;
         const dist = Math.random() * MOB_PATROL_RANGE;
         const tx = mob.spawnOrigin.x + Math.cos(angle) * dist;
@@ -109,13 +119,13 @@ export class MobAISystem {
     }
 
     const dist = distance(mob.position, mob.patrolTarget);
-    if (dist < 0.3) {
+    if (dist < ARRIVAL_THRESHOLD_TILES) {
       mob.patrolTarget = null;
       mob.aiState = MobAIState.Idle;
       return;
     }
 
-    mob.moveToward(mob.patrolTarget, deltaSeconds * 0.5, world); // Patrol at half speed
+    mob.moveToward(mob.patrolTarget, deltaSeconds * PATROL_SPEED_MULTIPLIER, world);
   }
 
   private processChase(mob: Mob, world: World, deltaSeconds: number): void {
@@ -212,13 +222,13 @@ export class MobAISystem {
 
   private processLeash(mob: Mob, world: World, deltaSeconds: number): void {
     const dist = distance(mob.position, mob.spawnOrigin);
-    if (dist < 0.3) {
+    if (dist < ARRIVAL_THRESHOLD_TILES) {
       mob.aiState = MobAIState.Idle;
       mob.health = mob.maxHealth;
       return;
     }
 
-    mob.moveToward(mob.spawnOrigin, deltaSeconds * 1.5, world); // Faster return
+    mob.moveToward(mob.spawnOrigin, deltaSeconds * LEASH_RETURN_SPEED_MULTIPLIER, world);
   }
 
   private findAggroTarget(mob: Mob, world: World): Player | null {
@@ -258,7 +268,7 @@ export class MobAISystem {
 
   private calculateDamage(attack: number, defense: number): number {
     const base = attack * (attack / (attack + defense));
-    const variance = 0.85 + Math.random() * 0.30;
+    const variance = DAMAGE_VARIANCE_MIN + Math.random() * DAMAGE_VARIANCE_RANGE;
     return Math.round(base * variance);
   }
 
@@ -315,7 +325,7 @@ export class MobAISystem {
     if (!ability) return;
 
     // Apply cooldown
-    mob.abilityCooldowns.set(abilityId, ability.cooldown * 1000);
+    mob.abilityCooldowns.set(abilityId, ability.cooldown * MS_PER_SECOND);
 
     // Deal damage if applicable
     if (ability.damage > 0) {
