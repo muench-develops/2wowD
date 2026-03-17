@@ -21,3 +21,18 @@
 - **Buff system extended:** poison (DoT 5s), stun (immobilize 2s), fear (speed debuff 3s)
 - **Portal mechanics:** Position-based, targetZone + targetSpawnPoint for teleportation
 - **Type safety:** All zone types use ZoneId enum, portal connections validated through constants
+
+## Phase 2 Multi-Zone Backend Implementation (2026-03-17)
+- **Branch:** squad/3-zones-portals-dungeon
+- **Implemented:** T1-T8 (all backend tasks) from Deckard's zones decomposition
+- **Critical learning:** Phase 1 types + test infrastructure already committed by Lyndon (test setup agent)
+- **ZoneManager pattern:** Central registry for zones, zone-scoped spatial queries prevent cross-zone leaks
+- **World refactor:** Backward-compatible wrapper around ZoneManager, legacy API preserved via getters
+- **Zone isolation:** Each zone maintains separate player/mob maps, spatial queries respect zone boundaries
+- **Database migration:** Added current_zone column with auto-migration for existing characters
+- **Portal system:** 2.0 tile proximity validation, zone transition with PlayerLeft/PlayerJoined broadcasts
+- **Mob abilities:** Cooldown tracking per mob, rotating abilities for Bone Lord (3-ability cycle)
+- **AI integration:** Abilities integrated into Attack state, preferred over auto-attacks when available
+- **Map generators:** 3 distinct zones with unique layouts, mob distributions, portal placements
+- **Spawn system:** Zone-aware mob spawning, Bone Lord single-spawn with 600s respawn timer
+- **Testing notes:** Lyndon already created comprehensive test suite (ZoneManager, Portal, Isolation, Persistence)
