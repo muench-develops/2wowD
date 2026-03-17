@@ -547,4 +547,44 @@ export class VFXManager {
       });
     }
   }
+
+  // ====================================================================
+  // Mob-specific Effects
+  // ====================================================================
+
+  /** Skeleton Mage projectile: purple bolt */
+  playSkeletonMageProjectile(casterX: number, casterY: number, targetX: number, targetY: number): void {
+    this.playProjectile(casterX, casterY, targetX, targetY, 0x9966ff, 0xccaaff);
+  }
+
+  /** Bone Lord aura: pulsing red energy field */
+  playBoneLordAura(centerX: number, centerY: number): void {
+    const g = this.scene.add.graphics();
+    g.setDepth(VFX_DEPTH);
+
+    const state = { radius: 40, alpha: 0.6 };
+    this.scene.tweens.add({
+      targets: state,
+      radius: 60,
+      alpha: 0.2,
+      duration: 1500,
+      yoyo: true,
+      repeat: 2,
+      onUpdate: () => {
+        g.clear();
+        g.lineStyle(3, 0xff0000, state.alpha);
+        g.strokeCircle(centerX, centerY, state.radius);
+        g.fillStyle(0xff0000, state.alpha * 0.1);
+        g.fillCircle(centerX, centerY, state.radius);
+      },
+      onComplete: () => {
+        this.scene.tweens.add({
+          targets: g,
+          alpha: 0,
+          duration: 300,
+          onComplete: () => g.destroy(),
+        });
+      },
+    });
+  }
 }

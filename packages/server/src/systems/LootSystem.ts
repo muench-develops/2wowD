@@ -45,9 +45,9 @@ export class LootSystem {
       expiresAt: now + LOOT_EXPIRY_MS,
     };
 
-    world.addLoot(loot);
+    world.addLoot(loot, mob.zoneId);
 
-    this.network.broadcastToAll({
+    this.network.broadcastToZone(mob.zoneId, {
       type: ServerMessageType.LootSpawned,
       loot,
     });
@@ -56,28 +56,32 @@ export class LootSystem {
   /** Remove expired loot each tick. */
   update(world: World, _deltaMs: number): void {
     const now = Date.now();
-    const expired: string[] = [];
 
-    for (const [id, loot] of world.loots) {
-      if (now >= loot.expiresAt) {
-        expired.push(id);
+    for (const zone of world.zoneManager.getAllZones()) {
+      const expired: string[] = [];
+
+      for (const [id, loot] of zone.loots) {
+        if (now >= loot.expiresAt) {
+          expired.push(id);
+        }
       }
-    }
 
-    for (const id of expired) {
-      world.removeLoot(id);
-      this.network.broadcastToAll({
-        type: ServerMessageType.LootDespawned,
-        lootId: id,
-      });
+      for (const id of expired) {
+        zone.loots.delete(id);
+        this.network.broadcastToZone(zone.id, {
+          type: ServerMessageType.LootDespawned,
+          lootId: id,
+        });
+      }
     }
   }
 
   /** Try to pick up an item from loot. Returns the item or null. */
   pickupItem(world: World, playerId: string, lootId: string, itemIndex: number): LootItem | null {
-    const loot = world.loots.get(lootId);
-    if (!loot) return null;
+    const result = world.zoneManager.getLoot(lootId);
+    if (!result) return null;
 
+    const { loot, zoneId } = result;
     const now = Date.now();
     if (now < loot.killerOnlyUntil && loot.killerId !== playerId) {
       return null;
@@ -91,7 +95,7 @@ export class LootSystem {
     loot.items.splice(itemIndex, 1);
 
     // Broadcast pickup
-    this.network.broadcastToAll({
+    this.network.broadcastToZone(zoneId, {
       type: ServerMessageType.LootPickedUp,
       lootId: loot.id,
       itemIndex,
@@ -100,8 +104,8 @@ export class LootSystem {
 
     // If loot bag is now empty, remove it
     if (loot.items.length === 0) {
-      world.removeLoot(loot.id);
-      this.network.broadcastToAll({
+      world.zoneManager.removeLootFromZone(zoneId, loot.id);
+      this.network.broadcastToZone(zoneId, {
         type: ServerMessageType.LootDespawned,
         lootId: loot.id,
       });

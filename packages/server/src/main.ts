@@ -9,9 +9,13 @@ import { MobAISystem } from './systems/MobAISystem.js';
 import { SpawnSystem } from './systems/SpawnSystem.js';
 import { ChatSystem } from './systems/ChatSystem.js';
 import { LootSystem } from './systems/LootSystem.js';
-import { generateStarterMap } from './maps/StarterMap.js';
+import { ZoneManager } from './systems/ZoneManager.js';
+import { generateStarterPlainsMap } from './maps/StarterPlainsMap.js';
+import { generateDarkForestMap } from './maps/DarkForestMap.js';
+import { generateAncientDungeonMap } from './maps/AncientDungeonMap.js';
 import { Database } from './database/Database.js';
 import { AuthManager } from './auth/AuthManager.js';
+import { ZoneId } from '@isoheim/shared';
 
 const SAVE_INTERVAL_MS = 60_000; // periodic save every 60 seconds
 
@@ -23,15 +27,28 @@ function main(): void {
   const authManager = new AuthManager(db);
   console.log('[DB] SQLite database initialized');
 
-  // Generate map
-  const mapData = generateStarterMap();
-  console.log(`[Map] Generated ${mapData.width}x${mapData.height} map with ${mapData.spawnPoints.length} spawn points`);
+  // Initialize ZoneManager
+  const zoneManager = new ZoneManager();
+  console.log('[ZoneManager] Initializing zones...');
 
-  // Create world
-  const world = new World(mapData);
+  // Generate and register all three zones
+  const starterPlainsMap = generateStarterPlainsMap();
+  zoneManager.registerZone(ZoneId.StarterPlains, starterPlainsMap);
+
+  const darkForestMap = generateDarkForestMap();
+  zoneManager.registerZone(ZoneId.DarkForest, darkForestMap);
+
+  const ancientDungeonMap = generateAncientDungeonMap();
+  zoneManager.registerZone(ZoneId.AncientDungeon, ancientDungeonMap);
+
+  console.log('[ZoneManager] All zones loaded');
+
+  // Create world with ZoneManager
+  const world = new World(zoneManager, ZoneId.StarterPlains);
 
   // Create network manager
   const network = new NetworkManager();
+  network.setWorld(world);
 
   // Create systems
   const movementSystem = new MovementSystem();
@@ -82,9 +99,10 @@ function main(): void {
     messageHandler.handleMessage(sessionId, message);
   };
 
-  // Spawn initial mobs
+  // Spawn initial mobs for all zones
   spawnSystem.spawnInitialMobs(world);
-  console.log(`[Spawn] Spawned ${world.mobs.size} mobs`);
+  const totalMobs = world.mobs.size;
+  console.log(`[Spawn] Spawned ${totalMobs} mobs across all zones`);
 
   // Periodic save
   const saveTimer = setInterval(() => {

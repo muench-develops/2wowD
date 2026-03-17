@@ -8,8 +8,10 @@ import {
   DropItemMessage,
   MoveItemMessage,
   UseItemMessage,
+  ZoneId,
   ITEM_DATABASE,
   LOOT_PICKUP_RANGE,
+  PORTAL_USE_RANGE,
   distance,
   generateId,
   WorldLoot,
@@ -146,6 +148,10 @@ export class MessageHandler {
       case ClientMessageType.UseItem:
         this.handleUseItem(sessionId, message as UseItemMessage);
         break;
+
+      case ClientMessageType.UsePortal:
+        this.handleUsePortal(sessionId, message.targetZone);
+        break;
     }
   }
 
@@ -239,33 +245,42 @@ export class MessageHandler {
     this.sessions.set(sessionId, player.id);
     this.world.addPlayer(player);
 
+    // Get map data for player's current zone
+    const playerZone = this.world.zoneManager.getZone(player.currentZone);
+    const mapData = playerZone ? playerZone.mapData : this.world.mapData;
+
     // Send welcome with map data
     this.network.sendToPlayer(sessionId, {
       type: ServerMessageType.Welcome,
       playerId: player.id,
       player: player.toState(),
-      mapData: this.world.mapData,
+      mapData,
     });
 
     // Send initial inventory
     this.sendInventoryUpdate(sessionId, player);
 
-    // Send current loot on the ground
-    for (const loot of this.world.loots.values()) {
+    // Send current loot on the ground in player's zone
+    for (const loot of this.world.getLootsInZone(player.currentZone).values()) {
       this.network.sendToPlayer(sessionId, {
         type: ServerMessageType.LootSpawned,
         loot,
       });
     }
 
-    // Broadcast to others
-    this.network.broadcastToAll({
-      type: ServerMessageType.PlayerJoined,
-      player: player.toState(),
-    });
+    // Broadcast to others in the same zone
+    const zonePlayers = this.world.zoneManager.getPlayersInZone(player.currentZone);
+    for (const otherPlayer of zonePlayers) {
+      if (otherPlayer.id !== player.id) {
+        this.network.sendToPlayer(otherPlayer.id, {
+          type: ServerMessageType.PlayerJoined,
+          player: player.toState(),
+        });
+      }
+    }
 
     this.chatSystem.sendSystemMessage(`${player.name} has joined the game.`, this.world);
-    console.log(`[Game] Character selected: ${charInfo.name} (${charInfo.classType}) [${sessionId}]`);
+    console.log(`[Game] Character selected: ${charInfo.name} (${charInfo.classType}) in zone ${player.currentZone} [${sessionId}]`);
   }
 
   private handleDeleteCharacter(sessionId: string, characterId: string): void {
@@ -350,11 +365,11 @@ export class MessageHandler {
     const player = this.world.getPlayer(sessionId);
     if (!player || player.isDead) return;
 
-    const loot = this.world.loots.get(msg.lootId);
-    if (!loot) return;
+    const lootResult = this.world.zoneManager.getLoot(msg.lootId);
+    if (!lootResult) return;
 
     // Range check
-    const dist = distance(player.position, loot.position);
+    const dist = distance(player.position, lootResult.loot.position);
     if (dist > LOOT_PICKUP_RANGE) {
       this.network.sendToPlayer(sessionId, {
         type: ServerMessageType.Error,
@@ -402,8 +417,8 @@ export class MessageHandler {
       expiresAt: Date.now() + 60_000,
     };
 
-    this.world.addLoot(loot);
-    this.network.broadcastToAll({
+    this.world.addLoot(loot, player.currentZone);
+    this.network.broadcastToZone(player.currentZone, {
       type: ServerMessageType.LootSpawned,
       loot,
     });
@@ -440,7 +455,7 @@ export class MessageHandler {
     const effect = itemDef.useEffect;
     if (effect.type === 'heal') {
       const event = player.heal(effect.value, player.id);
-      this.network.broadcastToAll({
+      this.network.broadcastToZone(player.currentZone, {
         type: ServerMessageType.DamageDealt,
         event,
       });
@@ -466,8 +481,12 @@ export class MessageHandler {
   private saveAndRemovePlayer(sessionId: string): void {
     const player = this.world.getPlayer(sessionId);
     if (player && player.characterId) {
-      this.db.saveCharacter(player.toCharacterSaveData());
-      this.db.saveInventory(player.characterId, player.inventory);
+      try {
+        this.db.saveCharacter(player.toCharacterSaveData());
+        this.db.saveInventory(player.characterId, player.inventory);
+      } catch (error) {
+        console.error(`[Game] Failed to save player ${player.name} on disconnect:`, error);
+      }
     }
 
     const removed = this.world.removePlayer(sessionId);
@@ -475,7 +494,7 @@ export class MessageHandler {
       this.sessions.delete(sessionId);
       this.chatSystem.removePlayer(sessionId);
 
-      this.network.broadcastToAll({
+      this.network.broadcastToZone(removed.currentZone, {
         type: ServerMessageType.PlayerLeft,
         playerId: sessionId,
       });
@@ -494,9 +513,101 @@ export class MessageHandler {
   saveAllPlayers(): void {
     for (const player of this.world.players.values()) {
       if (player.characterId) {
-        this.db.saveCharacter(player.toCharacterSaveData());
-        this.db.saveInventory(player.characterId, player.inventory);
+        try {
+          this.db.saveCharacter(player.toCharacterSaveData());
+          this.db.saveInventory(player.characterId, player.inventory);
+        } catch (error) {
+          console.error(`[Game] Failed to save player ${player.name}:`, error);
+        }
       }
     }
+  }
+
+  // ── Zone/Portal handlers ──────────────────────────────────
+
+  private handleUsePortal(sessionId: string, targetZone: ZoneId): void {
+    const player = this.world.getPlayer(sessionId);
+    if (!player || player.isDead) return;
+
+    const portal = this.world.zoneManager.findNearestPortal(
+      player.currentZone,
+      player.position,
+      PORTAL_USE_RANGE,
+    );
+
+    if (!portal) {
+      this.network.sendToPlayer(sessionId, {
+        type: ServerMessageType.Error,
+        message: 'No portal nearby',
+      });
+      return;
+    }
+
+    if (portal.targetZone !== targetZone) {
+      this.network.sendToPlayer(sessionId, {
+        type: ServerMessageType.Error,
+        message: 'Portal does not lead to that zone',
+      });
+      return;
+    }
+
+    const oldZone = player.currentZone;
+    const newZone = portal.targetZone;
+    const newPosition = portal.targetSpawnPoint;
+
+    // Get zone data for client
+    const targetZoneData = this.world.zoneManager.getZone(newZone);
+    if (!targetZoneData) {
+      this.network.sendToPlayer(sessionId, {
+        type: ServerMessageType.Error,
+        message: 'Zone not found',
+      });
+      return;
+    }
+
+    // Notify old zone that player left
+    const oldZonePlayers = this.world.zoneManager.getPlayersInZone(oldZone);
+    for (const otherPlayer of oldZonePlayers) {
+      if (otherPlayer.id !== player.id) {
+        this.network.sendToPlayer(otherPlayer.id, {
+          type: ServerMessageType.PlayerLeft,
+          playerId: player.id,
+        });
+      }
+    }
+
+    // Change zone
+    this.world.changePlayerZone(player, newZone, newPosition);
+
+    // Persist zone change to DB immediately
+    try {
+      if (player.characterId) {
+        this.db.saveCharacter(player.toCharacterSaveData());
+      }
+    } catch (error) {
+      console.error(`[Portal] Failed to persist zone change for ${player.name}:`, error);
+    }
+
+    // Send zone changed message to player
+    this.network.sendToPlayer(sessionId, {
+      type: ServerMessageType.ZoneChanged,
+      oldZone,
+      newZone,
+      mapData: targetZoneData.mapData,
+      playerPosition: { x: newPosition.x, y: newPosition.y },
+    });
+
+    // Notify new zone that player joined
+    const newZonePlayers = this.world.zoneManager.getPlayersInZone(newZone);
+    for (const otherPlayer of newZonePlayers) {
+      if (otherPlayer.id !== player.id) {
+        this.network.sendToPlayer(otherPlayer.id, {
+          type: ServerMessageType.PlayerJoined,
+          player: player.toState(),
+        });
+      }
+    }
+
+    console.log(`[Portal] ${player.name} traveled from ${oldZone} to ${newZone}`);
   }
 }

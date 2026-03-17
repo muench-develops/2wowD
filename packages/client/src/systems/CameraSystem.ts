@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { lerp, MAP_WIDTH, MAP_HEIGHT, worldToScreen } from '@isoheim/shared';
 
+const BOUNDS_PADDING = 100;
+
 export class CameraSystem {
   private scene: Phaser.Scene;
   private targetX = 0;
@@ -9,19 +11,29 @@ export class CameraSystem {
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
+    this.updateBounds(MAP_WIDTH, MAP_HEIGHT);
+  }
 
-    // Set world bounds based on map size
-    const topLeft = worldToScreen(0, MAP_HEIGHT);
-    const topRight = worldToScreen(MAP_WIDTH, 0);
-    const bottomLeft = worldToScreen(0, 0);
-    const bottomRight = worldToScreen(MAP_WIDTH, MAP_HEIGHT);
+  /** Recalculate camera bounds for a given map size (in tiles) */
+  updateBounds(mapWidth: number, mapHeight: number): void {
+    const left = worldToScreen(0, mapHeight);
+    const right = worldToScreen(mapWidth, 0);
+    const top = worldToScreen(0, 0);
+    const bottom = worldToScreen(mapWidth, mapHeight);
 
-    const minX = topLeft.x - 100;
-    const maxX = topRight.x + 100;
-    const minY = bottomLeft.y - 100;
-    const maxY = bottomRight.y + 100;
+    const minX = left.x - BOUNDS_PADDING;
+    const maxX = right.x + BOUNDS_PADDING;
+    const minY = top.y - BOUNDS_PADDING;
+    const maxY = bottom.y + BOUNDS_PADDING;
 
     this.scene.cameras.main.setBounds(minX, minY, maxX - minX, maxY - minY);
+  }
+
+  /** Immediately center the camera on a screen-space position */
+  snapTo(screenX: number, screenY: number): void {
+    this.targetX = screenX;
+    this.targetY = screenY;
+    this.scene.cameras.main.centerOn(screenX, screenY);
   }
 
   /** Set the screen-space target for the camera to follow */

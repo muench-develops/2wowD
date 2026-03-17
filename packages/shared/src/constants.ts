@@ -1,4 +1,4 @@
-import { ClassStats, ClassType, AbilityDef, BuffDef, MobType, ItemDef, ItemType, ItemRarity } from './types.js';
+import { ClassStats, ClassType, AbilityDef, BuffDef, MobType, ItemDef, ItemType, ItemRarity, ZoneId, ZoneMetadata, Portal, Vec2 } from './types.js';
 
 // ============================================================
 // Game Constants
@@ -352,6 +352,66 @@ export const MOB_DEFINITIONS: Record<MobType, MobDef> = {
     level: 1,
     xpReward: 25,
   },
+  [MobType.Spider]: {
+    type: MobType.Spider,
+    name: 'Spider',
+    maxHealth: 80,
+    attack: 12,
+    defense: 5,
+    speed: 2.8,
+    attackRange: 1.5,
+    attackSpeed: 1.8,
+    level: 3,
+    xpReward: 40,
+  },
+  [MobType.Bandit]: {
+    type: MobType.Bandit,
+    name: 'Bandit',
+    maxHealth: 120,
+    attack: 20,
+    defense: 10,
+    speed: 3.0,
+    attackRange: 1.5,
+    attackSpeed: 1.5,
+    level: 4,
+    xpReward: 50,
+  },
+  [MobType.WolfAlpha]: {
+    type: MobType.WolfAlpha,
+    name: 'Wolf Alpha',
+    maxHealth: 150,
+    attack: 25,
+    defense: 12,
+    speed: 3.8,
+    attackRange: 1.5,
+    attackSpeed: 2.0,
+    level: 5,
+    xpReward: 70,
+  },
+  [MobType.SkeletonMage]: {
+    type: MobType.SkeletonMage,
+    name: 'Skeleton Mage',
+    maxHealth: 100,
+    attack: 30,
+    defense: 6,
+    speed: 2.2,
+    attackRange: 8.0,
+    attackSpeed: 1.0,
+    level: 6,
+    xpReward: 80,
+  },
+  [MobType.BoneLord]: {
+    type: MobType.BoneLord,
+    name: 'Bone Lord',
+    maxHealth: 400,
+    attack: 40,
+    defense: 20,
+    speed: 2.5,
+    attackRange: 1.5,
+    attackSpeed: 1.2,
+    level: 10,
+    xpReward: 200,
+  },
 };
 
 // ============================================================
@@ -399,6 +459,36 @@ export const BUFF_DEFINITIONS: Record<string, BuffDef> = {
     tickInterval: 0,
     isDebuff: false,
   },
+  'buff-poison': {
+    id: 'buff-poison',
+    name: 'Poison',
+    duration: 5000,
+    statModifiers: {},
+    tickDamage: 2,
+    tickHeal: 0,
+    tickInterval: 1000,
+    isDebuff: true,
+  },
+  'buff-stun': {
+    id: 'buff-stun',
+    name: 'Stun',
+    duration: 2000,
+    statModifiers: { speed: 0.0 },
+    tickDamage: 0,
+    tickHeal: 0,
+    tickInterval: 0,
+    isDebuff: true,
+  },
+  'buff-fear': {
+    id: 'buff-fear',
+    name: 'Fear',
+    duration: 3000,
+    statModifiers: { speed: 0.5 },
+    tickDamage: 0,
+    tickHeal: 0,
+    tickInterval: 0,
+    isDebuff: true,
+  },
 };
 
 /** Maps ability IDs to the buff they apply and whether it targets self or the ability target */
@@ -410,6 +500,134 @@ export const ABILITY_BUFF_MAP: Record<string, { buffId: string; targetSelf: bool
 };
 
 // ============================================================
+// Mob Abilities
+// ============================================================
+
+export interface MobAbilityDef {
+  id: string;
+  name: string;
+  damage: number;
+  range: number;
+  cooldown: number;
+  buffId?: string;
+}
+
+export const MOB_ABILITIES: Record<string, MobAbilityDef> = {
+  'spider-poison-bite': {
+    id: 'spider-poison-bite',
+    name: 'Poison Bite',
+    damage: 8,
+    range: 1.5,
+    cooldown: 6,
+    buffId: 'buff-poison',
+  },
+  'skeleton-mage-shadow-bolt': {
+    id: 'skeleton-mage-shadow-bolt',
+    name: 'Shadow Bolt',
+    damage: 25,
+    range: 8.0,
+    cooldown: 4,
+  },
+  'bone-lord-fear': {
+    id: 'bone-lord-fear',
+    name: 'Fear',
+    damage: 0,
+    range: 5.0,
+    cooldown: 12,
+    buffId: 'buff-fear',
+  },
+  'bone-lord-bone-storm': {
+    id: 'bone-lord-bone-storm',
+    name: 'Bone Storm',
+    damage: 35,
+    range: 3.0,
+    cooldown: 8,
+  },
+  'wolf-alpha-howl': {
+    id: 'wolf-alpha-howl',
+    name: 'Howl',
+    damage: 0,
+    range: 6.0,
+    cooldown: 10,
+    buffId: 'buff-stun',
+  },
+};
+
+/** Maps mob types to their available ability IDs */
+export const MOB_ABILITY_MAP: Partial<Record<MobType, string[]>> = {
+  [MobType.Spider]: ['spider-poison-bite'],
+  [MobType.SkeletonMage]: ['skeleton-mage-shadow-bolt'],
+  [MobType.BoneLord]: ['bone-lord-fear', 'bone-lord-bone-storm'],
+  [MobType.WolfAlpha]: ['wolf-alpha-howl'],
+};
+
+// ============================================================
+// Zone Definitions
+// ============================================================
+
+export const ZONE_METADATA: Record<ZoneId, ZoneMetadata> = {
+  [ZoneId.StarterPlains]: {
+    id: ZoneId.StarterPlains,
+    name: 'Starter Plains',
+    width: 50,
+    height: 50,
+    levelRange: [1, 3],
+    tilePalette: 'plains',
+  },
+  [ZoneId.DarkForest]: {
+    id: ZoneId.DarkForest,
+    name: 'Dark Forest',
+    width: 60,
+    height: 60,
+    levelRange: [3, 6],
+    tilePalette: 'forest',
+  },
+  [ZoneId.AncientDungeon]: {
+    id: ZoneId.AncientDungeon,
+    name: 'Ancient Dungeon',
+    width: 40,
+    height: 40,
+    levelRange: [6, 10],
+    tilePalette: 'dungeon',
+  },
+};
+
+export const ZONE_PLAYER_SPAWNS: Record<ZoneId, Vec2> = {
+  [ZoneId.StarterPlains]: { x: 25, y: 25 },
+  [ZoneId.DarkForest]: { x: 5, y: 30 },
+  [ZoneId.AncientDungeon]: { x: 20, y: 38 },
+};
+
+export const ZONE_PORTALS: Record<ZoneId, Portal[]> = {
+  [ZoneId.StarterPlains]: [
+    {
+      position: { x: 48, y: 25 },
+      targetZone: ZoneId.DarkForest,
+      targetSpawnPoint: { x: 5, y: 30 },
+    },
+  ],
+  [ZoneId.DarkForest]: [
+    {
+      position: { x: 2, y: 30 },
+      targetZone: ZoneId.StarterPlains,
+      targetSpawnPoint: { x: 46, y: 25 },
+    },
+    {
+      position: { x: 55, y: 55 },
+      targetZone: ZoneId.AncientDungeon,
+      targetSpawnPoint: { x: 20, y: 38 },
+    },
+  ],
+  [ZoneId.AncientDungeon]: [
+    {
+      position: { x: 20, y: 39 },
+      targetZone: ZoneId.DarkForest,
+      targetSpawnPoint: { x: 53, y: 53 },
+    },
+  ],
+};
+
+// ============================================================
 // Item Constants
 // ============================================================
 
@@ -417,6 +635,12 @@ export const INVENTORY_SIZE = 20;
 export const LOOT_EXPIRY_MS = 60_000;
 export const LOOT_KILLER_ONLY_MS = 30_000;
 export const LOOT_PICKUP_RANGE = 2.0;
+export const PORTAL_USE_RANGE = 2.0;
+
+// Mob separation (prevents permanent overlap)
+export const MOB_SEPARATION_DISTANCE = 0.4;
+export const MOB_SEPARATION_EPSILON = 0.001;
+export const MOB_SEPARATION_PUSH_FACTOR = 0.5;
 
 // ============================================================
 // Item Database

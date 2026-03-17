@@ -8,12 +8,8 @@ import {
   DamageEvent,
   MobDef,
   MOB_DEFINITIONS,
-  AGGRO_RANGE,
-  LEASH_RANGE,
-  MOB_PATROL_RANGE,
-  MAP_WIDTH,
-  MAP_HEIGHT,
-  distance,
+  ZoneId,
+  ZONE_METADATA,
   normalize,
   vectorToDirection,
   generateId,
@@ -56,12 +52,20 @@ export class Mob {
   // Threat
   threatTable: Map<string, number> = new Map();
 
-  constructor(mobType: MobType, spawnPos: Vec2, respawnTimeSec: number) {
+  // Abilities
+  abilityCooldowns: Map<string, number> = new Map();
+  lastAbilityIndex: number = -1; // For rotating abilities (Bone Lord)
+
+  // Zone
+  zoneId: ZoneId = ZoneId.StarterPlains;
+
+  constructor(mobType: MobType, spawnPos: Vec2, respawnTimeSec: number, zoneId: ZoneId = ZoneId.StarterPlains) {
     this.id = generateId();
     this.mobType = mobType;
     this.def = MOB_DEFINITIONS[mobType];
     this.spawnOrigin = { ...spawnPos };
     this.respawnTime = respawnTimeSec * 1000;
+    this.zoneId = zoneId;
 
     this.position = {
       x: spawnPos.x,
@@ -152,19 +156,22 @@ export class Mob {
     const newX = this.position.x + dir.x * actualMove;
     const newY = this.position.y + dir.y * actualMove;
 
-    // Clamp to map bounds
-    const clampedX = Math.max(1, Math.min(MAP_WIDTH - 2, newX));
-    const clampedY = Math.max(1, Math.min(MAP_HEIGHT - 2, newY));
+    // Clamp to zone-specific bounds
+    const zoneMeta = ZONE_METADATA[this.zoneId];
+    const mapWidth = zoneMeta.width;
+    const mapHeight = zoneMeta.height;
+    const clampedX = Math.max(1, Math.min(mapWidth - 2, newX));
+    const clampedY = Math.max(1, Math.min(mapHeight - 2, newY));
 
     if (world) {
-      if (!world.isCollision(clampedX, clampedY)) {
+      if (!world.isCollision(clampedX, clampedY, this.zoneId)) {
         this.position.x = clampedX;
         this.position.y = clampedY;
       } else {
         // Axis-sliding: try each axis independently
-        if (!world.isCollision(clampedX, this.position.y)) {
+        if (!world.isCollision(clampedX, this.position.y, this.zoneId)) {
           this.position.x = clampedX;
-        } else if (!world.isCollision(this.position.x, clampedY)) {
+        } else if (!world.isCollision(this.position.x, clampedY, this.zoneId)) {
           this.position.y = clampedY;
         }
         // Both axes blocked — mob stays in place

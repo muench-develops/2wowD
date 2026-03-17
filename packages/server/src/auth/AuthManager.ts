@@ -4,6 +4,7 @@ import {
   CharacterSummary,
   CharacterInfo,
   ClassType,
+  ZoneId,
   MAX_CHARACTERS_PER_ACCOUNT,
   MIN_USERNAME_LENGTH,
   MAX_USERNAME_LENGTH,
@@ -186,6 +187,11 @@ export class AuthManager {
   }
 
   private rowToCharacterInfo(row: CharacterRow): CharacterInfo {
+    const validZoneIds = Object.values(ZoneId) as string[];
+    const currentZone = validZoneIds.includes(row.current_zone)
+      ? (row.current_zone as ZoneId)
+      : ZoneId.StarterPlains;
+
     return {
       id: row.id,
       accountId: row.account_id,
@@ -197,6 +203,7 @@ export class AuthManager {
       posY: row.pos_y,
       health: row.health,
       mana: row.mana,
+      currentZone,
       createdAt: row.created_at,
       lastPlayed: row.last_played,
     };

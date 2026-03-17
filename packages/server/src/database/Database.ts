@@ -12,6 +12,7 @@ export interface CharacterRow {
   pos_y: number;
   health: number;
   mana: number;
+  current_zone: string;
   created_at: number;
   last_played: number;
 }
@@ -55,6 +56,7 @@ export class Database {
         pos_y REAL NOT NULL DEFAULT 25,
         health REAL NOT NULL DEFAULT -1,
         mana REAL NOT NULL DEFAULT -1,
+        current_zone TEXT NOT NULL DEFAULT 'starter-plains',
         created_at INTEGER NOT NULL,
         last_played INTEGER NOT NULL
       );
@@ -67,6 +69,17 @@ export class Database {
         PRIMARY KEY (character_id, slot)
       );
     `);
+
+    // Migration: Add current_zone column to existing characters
+    const columns = this.db.pragma('table_info(characters)') as Array<{ name: string }>;
+    const hasCurrentZone = columns.some(col => col.name === 'current_zone');
+    
+    if (!hasCurrentZone) {
+      this.db.exec(`
+        ALTER TABLE characters ADD COLUMN current_zone TEXT NOT NULL DEFAULT 'starter-plains';
+      `);
+      console.log('[DB] Migration: Added current_zone column to characters table');
+    }
   }
 
   // ── Account methods ──────────────────────────────────────
@@ -95,8 +108,8 @@ export class Database {
     const now = Date.now();
     this.db.prepare(
       `INSERT INTO characters
-        (id, account_id, name, class_type, level, xp, pos_x, pos_y, health, mana, created_at, last_played)
-       VALUES (?, ?, ?, ?, 1, 0, 25, 25, -1, -1, ?, ?)`,
+        (id, account_id, name, class_type, level, xp, pos_x, pos_y, health, mana, current_zone, created_at, last_played)
+       VALUES (?, ?, ?, ?, 1, 0, 25, 25, -1, -1, 'starter-plains', ?, ?)`,
     ).run(id, accountId, name, classType, now, now);
     return id;
   }
@@ -123,12 +136,13 @@ export class Database {
     posY: number;
     health: number;
     mana: number;
+    currentZone: string;
   }): void {
     this.db.prepare(
       `UPDATE characters
-       SET level = ?, xp = ?, pos_x = ?, pos_y = ?, health = ?, mana = ?, last_played = ?
+       SET level = ?, xp = ?, pos_x = ?, pos_y = ?, health = ?, mana = ?, current_zone = ?, last_played = ?
        WHERE id = ?`,
-    ).run(data.level, data.xp, data.posX, data.posY, data.health, data.mana, Date.now(), data.id);
+    ).run(data.level, data.xp, data.posX, data.posY, data.health, data.mana, data.currentZone, Date.now(), data.id);
   }
 
   deleteCharacter(charId: string, accountId: string): boolean {

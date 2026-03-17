@@ -32,6 +32,8 @@ export class HUDScene extends Phaser.Scene {
   private latencyText!: Phaser.GameObjects.Text;
   private muteIndicator!: Phaser.GameObjects.Text;
   private gameScene!: Phaser.Scene;
+  private zoneNameText!: Phaser.GameObjects.Text;
+  private tooltipText!: Phaser.GameObjects.Text;
 
   constructor() {
     super({ key: 'HUDScene' });
@@ -122,6 +124,26 @@ export class HUDScene extends Phaser.Scene {
       this.updateMuteIndicator();
     });
 
+    // Zone name display (top center)
+    this.zoneNameText = this.add.text(640, 8, 'Starter Plains', {
+      fontFamily: 'monospace',
+      fontSize: '16px',
+      color: '#ffdd88',
+      stroke: '#000000',
+      strokeThickness: 3,
+    });
+    this.zoneNameText.setOrigin(0.5, 0).setDepth(100);
+
+    // Tooltip text (initially hidden)
+    this.tooltipText = this.add.text(0, 0, '', {
+      fontFamily: 'monospace',
+      fontSize: '12px',
+      color: '#ffffff',
+      backgroundColor: '#000000aa',
+      padding: { x: 6, y: 4 },
+    });
+    this.tooltipText.setOrigin(0.5, 1).setDepth(10000).setVisible(false);
+
     // Listen to GameScene events
     this.gameScene.events.on('updatePlayerHealth', (current: number, max: number) => {
       this.healthBar.setValue(current, max);
@@ -192,21 +214,6 @@ export class HUDScene extends Phaser.Scene {
       this.gameScene.events.emit('chatFocusChanged', false);
     });
 
-    // Guide system
-    this.guideSystem = new GuideSystem(this, this.gameScene);
-
-    // Help button (? icon top-right)
-    this.helpButton = this.add.text(1260, 16, '❓', {
-      fontSize: '20px',
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true })
-      .setDepth(800)
-      .on('pointerdown', () => this.guideSystem.showCurrentTip());
-
-    // Start tutorial on first game entry
-    this.gameScene.events.on('gameReady', () => {
-      this.guideSystem.start();
-    });
-
     // Listen for mute toggle from GameScene (M key)
     this.gameScene.events.on('muteToggled', () => {
       this.updateMuteIndicator();
@@ -246,6 +253,20 @@ export class HUDScene extends Phaser.Scene {
       if (inputSystem && 'chatFocused' in inputSystem) {
         inputSystem.chatFocused = focused;
       }
+    });
+
+    this.gameScene.events.on('zoneChanged', (zoneName: string) => {
+      this.zoneNameText.setText(zoneName);
+    });
+
+    this.gameScene.events.on('showTooltip', (text: string, x: number, y: number) => {
+      this.tooltipText.setText(text);
+      this.tooltipText.setPosition(x, y);
+      this.tooltipText.setVisible(true);
+    });
+
+    this.gameScene.events.on('hideTooltip', () => {
+      this.tooltipText.setVisible(false);
     });
   }
 

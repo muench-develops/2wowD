@@ -2,16 +2,13 @@ import {
   DamageEvent,
   ClassType,
   AbilityDef,
-  CLASS_ABILITIES,
   CLASS_COMBAT_CHANCES,
   CRIT_MULTIPLIER,
   RANGED_MISS_CHANCE,
   AUTO_ATTACK_RANGE_MELEE,
-  MOB_DEFINITIONS,
   BUFF_DEFINITIONS,
   ABILITY_BUFF_MAP,
   distance,
-  generateId,
 } from '@isoheim/shared';
 import { Player } from '../entities/Player.js';
 import { Mob } from '../entities/Mob.js';
@@ -36,30 +33,32 @@ export class CombatSystem {
   }
 
   update(world: World, deltaMs: number, now: number): void {
-    for (const player of world.players.values()) {
-      player.updateCooldowns(deltaMs);
-      player.updateCombatState(now);
-      player.regenerate();
+    for (const zone of world.zoneManager.getAllZones()) {
+      for (const player of zone.players.values()) {
+        player.updateCooldowns(deltaMs);
+        player.updateCombatState(now);
+        player.regenerate();
 
-      // Respawn timer
-      if (player.isDead) {
-        player.respawnTimer -= deltaMs;
-        if (player.respawnTimer <= 0) {
-          player.respawn();
-          this.network.broadcastToAll({
-            type: ServerMessageType.EntityRespawned,
-            entityId: player.id,
-            position: { ...player.position },
-            health: player.health,
-            maxHealth: player.maxHealth,
-          });
+        // Respawn timer
+        if (player.isDead) {
+          player.respawnTimer -= deltaMs;
+          if (player.respawnTimer <= 0) {
+            player.respawn();
+            this.network.broadcastToZone(zone.id, {
+              type: ServerMessageType.EntityRespawned,
+              entityId: player.id,
+              position: { ...player.position },
+              health: player.health,
+              maxHealth: player.maxHealth,
+            });
+          }
+          continue;
         }
-        continue;
-      }
 
-      // Auto-attack
-      if (player.targetId && player.canAutoAttack(now)) {
-        this.processAutoAttack(player, world, now);
+        // Auto-attack
+        if (player.targetId && player.canAutoAttack(now)) {
+          this.processAutoAttack(player, world, now);
+        }
       }
     }
   }
@@ -102,13 +101,13 @@ export class CombatSystem {
           event.isCrit = outcome.isCrit;
         }
 
-        this.network.broadcastToAll({
+        this.network.broadcastToZone(player.currentZone, {
           type: ServerMessageType.DamageDealt,
           event,
         });
 
         if (mob.isDead) {
-          this.network.broadcastToAll({
+          this.network.broadcastToZone(player.currentZone, {
             type: ServerMessageType.EntityDied,
             entityId: mob.id,
             killerName: player.name,
@@ -161,7 +160,7 @@ export class CombatSystem {
     player.startCooldown(abilityId);
 
     // Broadcast cast
-    this.network.broadcastToAll({
+    this.network.broadcastToZone(player.currentZone, {
       type: ServerMessageType.AbilityCast,
       casterId: player.id,
       abilityId,
@@ -194,9 +193,10 @@ export class CombatSystem {
         if (buffMapping.targetSelf) {
           this.buffSystem.applyBuff(player.id, buffDef);
 
-          // Vanish special: clear all mob aggro on this player
+          // Vanish special: clear all mob aggro on this player in their zone
           if (buffDef.id === 'buff-vanish') {
-            for (const mob of world.mobs.values()) {
+            const zoneMobs = world.getZoneMobs(player.currentZone);
+            for (const mob of zoneMobs.values()) {
               if (mob.targetId === player.id) {
                 mob.targetId = null;
                 mob.threatTable.delete(player.id);
@@ -230,7 +230,7 @@ export class CombatSystem {
 
     const event = target.heal(healAmount, player.id, ability.id);
     event.isCrit = isCrit;
-    this.network.broadcastToAll({
+    this.network.broadcastToZone(player.currentZone, {
       type: ServerMessageType.DamageDealt,
       event,
     });
@@ -291,13 +291,13 @@ export class CombatSystem {
       event.isCrit = outcome.isCrit;
     }
 
-    this.network.broadcastToAll({
+    this.network.broadcastToZone(player.currentZone, {
       type: ServerMessageType.DamageDealt,
       event,
     });
 
     if (mob.isDead) {
-      this.network.broadcastToAll({
+      this.network.broadcastToZone(player.currentZone, {
         type: ServerMessageType.EntityDied,
         entityId: mob.id,
         killerName: player.name,
@@ -314,7 +314,7 @@ export class CombatSystem {
     now: number,
   ): void {
     const center = player.position;
-    const mobs = world.getMobsNear(center, ability.aoeRadius);
+    const mobs = world.getMobsNear(center, ability.aoeRadius, player.currentZone);
     const isMelee = ability.range <= AUTO_ATTACK_RANGE_MELEE;
 
     player.inCombat = true;
@@ -347,13 +347,13 @@ export class CombatSystem {
         event.isCrit = outcome.isCrit;
       }
 
-      this.network.broadcastToAll({
+      this.network.broadcastToZone(player.currentZone, {
         type: ServerMessageType.DamageDealt,
         event,
       });
 
       if (mob.isDead) {
-        this.network.broadcastToAll({
+        this.network.broadcastToZone(player.currentZone, {
           type: ServerMessageType.EntityDied,
           entityId: mob.id,
           killerName: player.name,
@@ -368,7 +368,7 @@ export class CombatSystem {
     const xpReward = mob.def.xpReward;
     const leveled = player.addXp(xpReward);
     if (leveled) {
-      this.network.broadcastToAll({
+      this.network.broadcastToZone(player.currentZone, {
         type: ServerMessageType.LevelUp,
         playerId: player.id,
         newLevel: player.level,

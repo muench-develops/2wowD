@@ -13,6 +13,9 @@ import {
   PLAYER_SPAWN_X,
   PLAYER_SPAWN_Y,
   TICK_INTERVAL,
+  ZoneId,
+  ZONE_METADATA,
+  ZONE_PORTALS,
   type WelcomeMessage,
   type WorldStateMessage,
   type PlayerMovedMessage,
@@ -31,6 +34,7 @@ import {
   type LootSpawnedMessage,
   type LootDespawnedMessage,
   type LootPickedUpMessage,
+  type ZoneChangedMessage,
   type WorldLoot,
 } from '@isoheim/shared';
 import { NetworkManager } from '../network/NetworkManager';
@@ -53,6 +57,7 @@ export class GameScene extends Phaser.Scene {
   private playerId: string | null = null;
   private localPlayer: PlayerEntity | null = null;
   private mapData: MapData | null = null;
+  private currentZone: ZoneId = ZoneId.StarterPlains;
 
   private players = new Map<string, PlayerEntity>();
   private mobs = new Map<string, MobEntity>();
@@ -61,6 +66,8 @@ export class GameScene extends Phaser.Scene {
 
   private worldLoots = new Map<string, WorldLoot>();
   private lootSprites = new Map<string, Phaser.GameObjects.Container>();
+
+  private portalSprites = new Map<string, Phaser.GameObjects.Graphics>();
 
   // Client-side prediction
   private localWorldX = PLAYER_SPAWN_X;
@@ -160,6 +167,12 @@ export class GameScene extends Phaser.Scene {
 
     this.events.emit('updatePlayerHealth', msg.player.health, msg.player.maxHealth);
     this.events.emit('updatePlayerMana', msg.player.mana, msg.player.maxMana);
+
+    // Snap camera to player immediately on join
+    const zoneMeta = ZONE_METADATA[this.currentZone];
+    this.cameraSystem.updateBounds(zoneMeta.width, zoneMeta.height);
+    const screen = worldToScreen(this.localWorldX, this.localWorldY);
+    this.cameraSystem.snapTo(screen.x, screen.y);
 
     // Signal game is ready for tutorial
     this.events.emit('gameReady');
@@ -426,6 +439,10 @@ export class GameScene extends Phaser.Scene {
         }
       }
     });
+
+    this.net.on(ServerMessageType.ZoneChanged, (msg: ZoneChangedMessage) => {
+      this.handleZoneChange(msg);
+    });
   }
 
   private registerInputHandlers(): void {
@@ -491,20 +508,27 @@ export class GameScene extends Phaser.Scene {
   private loadMap(data: MapData): void {
     this.mapData = data;
     this.tileLayer.removeAll(true);
+    this.clearPortals();
+
+    const zoneMetadata = ZONE_METADATA[this.currentZone];
+    const tilePalette = zoneMetadata.tilePalette;
 
     for (let row = 0; row < data.height; row++) {
       for (let col = 0; col < data.width; col++) {
         const tileType = data.tiles[row]?.[col] ?? TileType.Grass;
         const screen = worldToScreen(col, row);
 
-        const tile = this.add.image(screen.x, screen.y, `tile-${tileType}`);
+        const tileTexture = `tile-${tilePalette}-${tileType}`;
+        const tile = this.add.image(screen.x, screen.y, tileTexture);
         tile.setOrigin(0.5, 0.5);
         tile.setDepth(getDepthForPosition(col, row) - 1000);
         this.tileLayer.add(tile);
       }
     }
 
+    this.renderPortals();
     this.events.emit('mapLoaded', data);
+    this.events.emit('zoneChanged', zoneMetadata.name);
   }
 
   /** Current entity snapshots for HUD/minimap consumption. */
@@ -589,6 +613,175 @@ export class GameScene extends Phaser.Scene {
       sprite.destroy();
       this.lootSprites.delete(lootId);
     }
+  }
+
+  private renderPortals(): void {
+    const portals = ZONE_PORTALS[this.currentZone] || [];
+
+    for (const portal of portals) {
+      const screen = worldToScreen(portal.position.x, portal.position.y);
+      const portalKey = `${portal.position.x},${portal.position.y}`;
+
+      const gfx = this.add.graphics();
+      gfx.setDepth(getDepthForPosition(portal.position.x, portal.position.y) + 500);
+
+      const pulseAnim = this.tweens.addCounter({
+        from: 0,
+        to: 1,
+        duration: 2000,
+        repeat: -1,
+        yoyo: true,
+        onUpdate: (tween) => {
+          const value = tween.getValue() ?? 0;
+          const radius = 16 + value * 6;
+          const alpha = 0.4 + value * 0.3;
+
+          gfx.clear();
+          gfx.fillStyle(0x00ffff, alpha);
+          gfx.fillCircle(screen.x, screen.y, radius);
+          gfx.lineStyle(3, 0x44ddff, 0.8);
+          gfx.strokeCircle(screen.x, screen.y, radius);
+        },
+      });
+
+      const hitZone = this.add.zone(screen.x, screen.y, 48, 48);
+      hitZone.setInteractive({ useHandCursor: true });
+      hitZone.setDepth(getDepthForPosition(portal.position.x, portal.position.y) + 501);
+
+      const targetZoneMeta = ZONE_METADATA[portal.targetZone];
+      const tooltipText = `Portal to ${targetZoneMeta.name}`;
+
+      hitZone.on('pointerover', () => {
+        this.events.emit('showTooltip', tooltipText, screen.x, screen.y - 40);
+      });
+
+      hitZone.on('pointerout', () => {
+        this.events.emit('hideTooltip');
+      });
+
+      hitZone.on('pointerdown', () => {
+        this.net.send({
+          type: ClientMessageType.UsePortal,
+          targetZone: portal.targetZone,
+        });
+      });
+
+      this.portalSprites.set(portalKey, gfx);
+      gfx.setData('pulseAnim', pulseAnim);
+      gfx.setData('hitZone', hitZone);
+    }
+  }
+
+  private clearPortals(): void {
+    for (const [key, gfx] of this.portalSprites) {
+      const pulseAnim = gfx.getData('pulseAnim');
+      const hitZone = gfx.getData('hitZone');
+      if (pulseAnim) pulseAnim.destroy();
+      if (hitZone) hitZone.destroy();
+      gfx.destroy();
+    }
+    this.portalSprites.clear();
+  }
+
+  private handleZoneChange(msg: ZoneChangedMessage): void {
+    this.showZoneTransition(msg.newZone, () => {
+      this.currentZone = msg.newZone;
+      this.localWorldX = msg.playerPosition.x;
+      this.localWorldY = msg.playerPosition.y;
+
+      this.clearEntities();
+      this.selectedTargetId = null;
+      this.events.emit('hideTarget');
+
+      this.loadMap(msg.mapData);
+
+      if (this.localPlayer) {
+        this.localPlayer.setWorldPosition(msg.playerPosition.x, msg.playerPosition.y);
+      }
+
+      const zoneMeta = ZONE_METADATA[msg.newZone];
+      this.cameraSystem.updateBounds(zoneMeta.width, zoneMeta.height);
+      const screen = worldToScreen(msg.playerPosition.x, msg.playerPosition.y);
+      this.cameraSystem.snapTo(screen.x, screen.y);
+    });
+  }
+
+  private clearEntities(): void {
+    for (const pe of this.players.values()) {
+      if (pe !== this.localPlayer) {
+        pe.destroy();
+      }
+    }
+    this.players.clear();
+    if (this.localPlayer && this.playerId) {
+      this.players.set(this.playerId, this.localPlayer);
+    }
+
+    for (const me of this.mobs.values()) {
+      me.destroy();
+    }
+    this.mobs.clear();
+
+    for (const lootId of this.lootSprites.keys()) {
+      this.removeLootSprite(lootId);
+    }
+    this.worldLoots.clear();
+  }
+
+  private showZoneTransition(newZone: ZoneId, onComplete: () => void): void {
+    const zoneMetadata = ZONE_METADATA[newZone];
+    const overlay = this.add.rectangle(640, 360, 1280, 720, 0x000000, 0);
+    overlay.setDepth(20000);
+
+    const zoneName = this.add.text(640, 340, zoneMetadata.name, {
+      fontFamily: 'monospace',
+      fontSize: '32px',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 4,
+    });
+    zoneName.setOrigin(0.5);
+    zoneName.setAlpha(0);
+    zoneName.setDepth(20001);
+
+    const subtitle = this.add.text(640, 380, `Level ${zoneMetadata.levelRange[0]}-${zoneMetadata.levelRange[1]}`, {
+      fontFamily: 'monospace',
+      fontSize: '18px',
+      color: '#aaaaaa',
+      stroke: '#000000',
+      strokeThickness: 3,
+    });
+    subtitle.setOrigin(0.5);
+    subtitle.setAlpha(0);
+    subtitle.setDepth(20001);
+
+    this.tweens.add({
+      targets: overlay,
+      alpha: 1,
+      duration: 500,
+      onComplete: () => {
+        this.tweens.add({
+          targets: [zoneName, subtitle],
+          alpha: 1,
+          duration: 300,
+          onComplete: () => {
+            onComplete();
+            this.time.delayedCall(1200, () => {
+              this.tweens.add({
+                targets: [zoneName, subtitle, overlay],
+                alpha: 0,
+                duration: 500,
+                onComplete: () => {
+                  overlay.destroy();
+                  zoneName.destroy();
+                  subtitle.destroy();
+                },
+              });
+            });
+          },
+        });
+      },
+    });
   }
 
   update(_time: number, delta: number): void {

@@ -1,6 +1,7 @@
 import {
   TICK_INTERVAL,
   ServerMessageType,
+  type ServerMessage,
 } from '@isoheim/shared';
 import { World } from './World.js';
 import { MovementSystem } from '../systems/MovementSystem.js';
@@ -72,36 +73,10 @@ export class GameLoop {
     const tickEffects = this.buffSystem.update(deltaMs);
     for (const effect of tickEffects) {
       if (effect.damage > 0) {
-        const player = this.world.getPlayer(effect.entityId);
-        const mob = this.world.getMob(effect.entityId);
-        if (player && !player.isDead) {
-          const event = player.takeDamage(effect.damage, 'buff');
-          this.network.broadcastToAll({ type: ServerMessageType.DamageDealt, event });
-          if (player.isDead) {
-            this.network.broadcastToAll({
-              type: ServerMessageType.EntityDied,
-              entityId: player.id,
-              killerName: 'DoT',
-            });
-          }
-        } else if (mob && !mob.isDead) {
-          const event = mob.takeDamage(effect.damage, 'buff');
-          this.network.broadcastToAll({ type: ServerMessageType.DamageDealt, event });
-          if (mob.isDead) {
-            this.network.broadcastToAll({
-              type: ServerMessageType.EntityDied,
-              entityId: mob.id,
-              killerName: 'DoT',
-            });
-          }
-        }
+        this.processBuffDamage(effect.entityId, effect.damage);
       }
       if (effect.heal > 0) {
-        const player = this.world.getPlayer(effect.entityId);
-        if (player && !player.isDead) {
-          const event = player.heal(effect.heal, 'buff');
-          this.network.broadcastToAll({ type: ServerMessageType.DamageDealt, event });
-        }
+        this.processBuffHeal(effect.entityId, effect.heal);
       }
     }
 
@@ -125,16 +100,56 @@ export class GameLoop {
   }
 
   private broadcastWorldState(): void {
-    if (this.world.players.size === 0) return;
+    for (const zone of this.world.zoneManager.getAllZones()) {
+      if (zone.players.size === 0) continue;
 
-    const players = Array.from(this.world.players.values()).map((p) => p.toState(this.buffSystem));
-    const mobs = Array.from(this.world.mobs.values()).map((m) => m.toState(this.buffSystem));
+      const players = Array.from(zone.players.values()).map((p) => p.toState(this.buffSystem));
+      const mobs = Array.from(zone.mobs.values()).map((m) => m.toState(this.buffSystem));
 
-    this.network.broadcastToAll({
-      type: ServerMessageType.WorldState,
-      players,
-      mobs,
-      tick: this.tick,
-    });
+      const message: ServerMessage = {
+        type: ServerMessageType.WorldState,
+        players,
+        mobs,
+        tick: this.tick,
+      };
+
+      for (const player of zone.players.values()) {
+        this.network.sendToPlayer(player.id, message);
+      }
+    }
+  }
+
+  private processBuffDamage(entityId: string, damage: number): void {
+    const player = this.world.getPlayer(entityId);
+    const mob = this.world.getMob(entityId);
+    if (player && !player.isDead) {
+      const event = player.takeDamage(damage, 'buff');
+      this.network.broadcastToZone(player.currentZone, { type: ServerMessageType.DamageDealt, event });
+      if (player.isDead) {
+        this.network.broadcastToZone(player.currentZone, {
+          type: ServerMessageType.EntityDied,
+          entityId: player.id,
+          killerName: 'DoT',
+        });
+      }
+    } else if (mob && !mob.isDead) {
+      const event = mob.takeDamage(damage, 'buff');
+      this.network.broadcastToZone(mob.zoneId, { type: ServerMessageType.DamageDealt, event });
+      if (mob.isDead) {
+        this.network.broadcastToZone(mob.zoneId, {
+          type: ServerMessageType.EntityDied,
+          entityId: mob.id,
+          killerName: 'DoT',
+        });
+      }
+    }
+  }
+
+  private processBuffHeal(entityId: string, heal: number): void {
+    const player = this.world.getPlayer(entityId);
+    if (player && !player.isDead) {
+      const event = player.heal(heal, 'buff');
+      this.network.broadcastToZone(player.currentZone, { type: ServerMessageType.DamageDealt, event });
+    }
   }
 }

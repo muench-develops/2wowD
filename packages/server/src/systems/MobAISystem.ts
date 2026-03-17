@@ -4,6 +4,10 @@ import {
   MOB_PATROL_RANGE,
   distance,
   ServerMessageType,
+  MOB_ABILITIES,
+  MOB_ABILITY_MAP,
+  BUFF_DEFINITIONS,
+  MobType,
 } from '@isoheim/shared';
 import { Mob, MobAIState } from '../entities/Mob.js';
 import { Player } from '../entities/Player.js';
@@ -23,25 +27,40 @@ export class MobAISystem {
   update(world: World, deltaMs: number, now: number): void {
     const deltaSeconds = deltaMs / 1000;
 
-    for (const mob of world.mobs.values()) {
-      if (mob.isDead) continue;
+    for (const zone of world.zoneManager.getAllZones()) {
+      for (const mob of zone.mobs.values()) {
+        if (mob.isDead) continue;
 
-      switch (mob.aiState) {
-        case MobAIState.Idle:
-          this.processIdle(mob, world, deltaMs);
-          break;
-        case MobAIState.Patrol:
-          this.processPatrol(mob, world, deltaSeconds);
-          break;
-        case MobAIState.Chase:
-          this.processChase(mob, world, deltaSeconds);
-          break;
-        case MobAIState.Attack:
-          this.processAttack(mob, world, now);
-          break;
-        case MobAIState.Leash:
-          this.processLeash(mob, world, deltaSeconds);
-          break;
+        this.updateAbilityCooldowns(mob, deltaMs);
+
+        switch (mob.aiState) {
+          case MobAIState.Idle:
+            this.processIdle(mob, world, deltaMs);
+            break;
+          case MobAIState.Patrol:
+            this.processPatrol(mob, world, deltaSeconds);
+            break;
+          case MobAIState.Chase:
+            this.processChase(mob, world, deltaSeconds);
+            break;
+          case MobAIState.Attack:
+            this.processAttack(mob, world, now);
+            break;
+          case MobAIState.Leash:
+            this.processLeash(mob, world, deltaSeconds);
+            break;
+        }
+      }
+    }
+  }
+
+  private updateAbilityCooldowns(mob: Mob, deltaMs: number): void {
+    for (const [abilityId, cooldown] of mob.abilityCooldowns) {
+      const remaining = Math.max(0, cooldown - deltaMs);
+      if (remaining <= 0) {
+        mob.abilityCooldowns.delete(abilityId);
+      } else {
+        mob.abilityCooldowns.set(abilityId, remaining);
       }
     }
   }
@@ -65,7 +84,7 @@ export class MobAISystem {
         const dist = Math.random() * MOB_PATROL_RANGE;
         const tx = mob.spawnOrigin.x + Math.cos(angle) * dist;
         const ty = mob.spawnOrigin.y + Math.sin(angle) * dist;
-        if (!world.isCollision(tx, ty)) {
+        if (!world.isCollision(tx, ty, mob.zoneId)) {
           mob.patrolTarget = { x: tx, y: ty };
           mob.aiState = MobAIState.Patrol;
           break;
@@ -153,32 +172,40 @@ export class MobAISystem {
       return;
     }
 
-    if (mob.canAutoAttack(now)) {
-      const effectivePlayerStats = target.getEffectiveStats(this.buffSystem);
-      const effectiveMobStats = mob.getEffectiveStats(this.buffSystem);
-      const rawDamage = this.calculateDamage(effectiveMobStats.attack, effectivePlayerStats.defense);
-      const event = target.takeDamage(rawDamage, mob.id);
-      mob.lastAutoAttackTime = now;
+    // Try to use ability first (if mob has abilities)
+    const usedAbility = this.tryUseAbility(mob, target, world, now);
+    
+    // Auto attack if not using ability and can attack
+    if (!usedAbility && mob.canAutoAttack(now)) {
+      this.processAutoAttack(mob, target, world, now);
+    }
+  }
 
-      this.network.broadcastToAll({
-        type: ServerMessageType.DamageDealt,
-        event,
+  private processAutoAttack(mob: Mob, target: Player, world: World, now: number): void {
+    const effectivePlayerStats = target.getEffectiveStats(this.buffSystem);
+    const effectiveMobStats = mob.getEffectiveStats(this.buffSystem);
+    const rawDamage = this.calculateDamage(effectiveMobStats.attack, effectivePlayerStats.defense);
+    const event = target.takeDamage(rawDamage, mob.id);
+    mob.lastAutoAttackTime = now;
+
+    this.network.broadcastToZone(mob.zoneId, {
+      type: ServerMessageType.DamageDealt,
+      event,
+    });
+
+    if (target.isDead) {
+      this.network.broadcastToZone(mob.zoneId, {
+        type: ServerMessageType.EntityDied,
+        entityId: target.id,
+        killerName: mob.def.name,
       });
-
-      if (target.isDead) {
-        this.network.broadcastToAll({
-          type: ServerMessageType.EntityDied,
-          entityId: target.id,
-          killerName: mob.def.name,
-        });
-        mob.targetId = null;
-        const newTarget = this.findHighestThreat(mob, world);
-        if (newTarget) {
-          mob.targetId = newTarget.id;
-          mob.aiState = MobAIState.Chase;
-        } else {
-          mob.leash();
-        }
+      mob.targetId = null;
+      const newTarget = this.findHighestThreat(mob, world);
+      if (newTarget) {
+        mob.targetId = newTarget.id;
+        mob.aiState = MobAIState.Chase;
+      } else {
+        mob.leash();
       }
     }
   }
@@ -198,7 +225,8 @@ export class MobAISystem {
     let closest: Player | null = null;
     let closestDist = AGGRO_RANGE;
 
-    for (const player of world.players.values()) {
+    const zonePlayers = world.getZonePlayers(mob.zoneId);
+    for (const player of zonePlayers.values()) {
       if (player.isDead) continue;
       // Skip players who are vanished
       if (this.buffSystem.hasBuff(player.id, 'buff-vanish')) continue;
@@ -215,9 +243,10 @@ export class MobAISystem {
   private findHighestThreat(mob: Mob, world: World): Player | null {
     let highestThreat = 0;
     let target: Player | null = null;
+    const zonePlayers = world.getZonePlayers(mob.zoneId);
 
     for (const [playerId, threat] of mob.threatTable) {
-      const player = world.getPlayer(playerId);
+      const player = zonePlayers.get(playerId);
       if (player && !player.isDead && !this.buffSystem.hasBuff(playerId, 'buff-vanish') && threat > highestThreat) {
         highestThreat = threat;
         target = player;
@@ -231,5 +260,91 @@ export class MobAISystem {
     const base = attack * (attack / (attack + defense));
     const variance = 0.85 + Math.random() * 0.30;
     return Math.round(base * variance);
+  }
+
+  /** Try to use a mob ability if available and off cooldown */
+  private tryUseAbility(mob: Mob, target: Player, world: World, now: number): boolean {
+    const abilityIds = MOB_ABILITY_MAP[mob.mobType];
+    if (!abilityIds || abilityIds.length === 0) return false;
+
+    // For Bone Lord, rotate through abilities
+    if (mob.mobType === MobType.BoneLord) {
+      return this.useBoneLordAbility(mob, target, world, now, abilityIds);
+    }
+
+    // For other mobs, try each ability in order
+    for (const abilityId of abilityIds) {
+      if (this.canUseAbility(mob, abilityId, target)) {
+        this.useAbility(mob, abilityId, target, world, now);
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private useBoneLordAbility(mob: Mob, target: Player, world: World, now: number, abilityIds: string[]): boolean {
+    // Try abilities in rotation
+    for (let i = 0; i < abilityIds.length; i++) {
+      const nextIndex = (mob.lastAbilityIndex + 1 + i) % abilityIds.length;
+      const abilityId = abilityIds[nextIndex];
+      
+      if (this.canUseAbility(mob, abilityId, target)) {
+        this.useAbility(mob, abilityId, target, world, now);
+        mob.lastAbilityIndex = nextIndex;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private canUseAbility(mob: Mob, abilityId: string, target: Player): boolean {
+    const ability = MOB_ABILITIES[abilityId];
+    if (!ability) return false;
+
+    // Check cooldown
+    if (mob.abilityCooldowns.has(abilityId)) return false;
+
+    // Check range
+    const dist = distance(mob.position, target.position);
+    return dist <= ability.range;
+  }
+
+  private useAbility(mob: Mob, abilityId: string, target: Player, _world: World, _now: number): void {
+    const ability = MOB_ABILITIES[abilityId];
+    if (!ability) return;
+
+    // Apply cooldown
+    mob.abilityCooldowns.set(abilityId, ability.cooldown * 1000);
+
+    // Deal damage if applicable
+    if (ability.damage > 0) {
+      const damage = this.calculateDamage(mob.def.attack, target.stats.defense);
+      target.takeDamage(damage, mob.id);
+      
+      this.network.broadcastToZone(mob.zoneId, {
+        type: ServerMessageType.DamageDealt,
+        event: {
+          sourceId: mob.id,
+          targetId: target.id,
+          amount: damage,
+          abilityId,
+          isCrit: false,
+          isDodge: false,
+          isMiss: false,
+          isHeal: false,
+        },
+      });
+    }
+
+    // Apply buff if applicable
+    if (ability.buffId) {
+      const buffDef = BUFF_DEFINITIONS[ability.buffId];
+      if (buffDef) {
+        this.buffSystem.applyBuff(target.id, buffDef);
+      }
+    }
+
+    console.log(`[MobAI] ${mob.def.name} used ${ability.name} on ${target.name}`);
   }
 }

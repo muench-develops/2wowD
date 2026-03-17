@@ -1,7 +1,6 @@
 import {
   BuffDef,
   BuffState,
-  DamageEvent,
   ServerMessageType,
   generateId,
 } from '@isoheim/shared';

@@ -4,13 +4,16 @@ import {
   ClientMessage,
   SERVER_PORT,
   MAX_PLAYERS,
+  ZoneId,
   generateId,
 } from '@isoheim/shared';
+import type { World } from '../core/World.js';
 
 export class NetworkManager {
   private wss: WebSocketServer | null = null;
   private connections: Map<string, WebSocket> = new Map();
   private socketToId: Map<WebSocket, string> = new Map();
+  private world: World | null = null;
 
   /** Callbacks for connection events */
   onConnect: ((sessionId: string) => void) | null = null;
@@ -87,6 +90,16 @@ export class NetworkManager {
         ws.send(data);
       }
     }
+  }
+
+  setWorld(world: World): void {
+    this.world = world;
+  }
+
+  broadcastToZone(zoneId: ZoneId, message: ServerMessage): void {
+    if (!this.world) return;
+    const playerIds = this.world.zoneManager.getPlayerIdsInZone(zoneId);
+    this.broadcastToPlayers(playerIds, message);
   }
 
   getConnectionCount(): number {

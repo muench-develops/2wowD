@@ -10,6 +10,7 @@ const TILE_COLORS: Record<TileType, number> = {
   [TileType.Dirt]: 0x8b6914,
   [TileType.Stone]: 0x777788,
   [TileType.Water]: 0x2244aa,
+  [TileType.Portal]: 0x00dddd,
 };
 
 export interface MinimapEntityData {

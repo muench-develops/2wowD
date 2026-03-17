@@ -53,6 +53,58 @@
 **What:** `VFXManager` singleton in packages/client/src/systems/ for all ability visual effects using Phaser Graphics+Tweens only
 **Why:** Decouple VFX from GameScene, match SoundManager convention, avoid particle emitter API fragility
 
+### 2026-03-17: Clean Code Patterns — UI Components
+**By:** Leah (Frontend Dev)
+**What:** Six patterns for all UI components:
+  1. Event Handler Memory Leak Prevention — Track handlers in Map, unbind in destroy()
+  2. Named Constants Over Magic Numbers — All literals (numbers, colors, strings) as constants
+  3. Function Size Limit — Keep functions ~20 lines, extract into single-purpose helpers
+  4. Intention-Revealing Names — No abbreviations or single-letter variables
+  5. DRY — Replace duplicated logic with parameterized helpers
+  6. Defensive localStorage — Wrap in try-catch with fallbacks (private browsing mode)
+**Context:** Applied to PR #15 refactoring, recommended as team standard for Phase 3 frontend
+**Why:** Prevent memory leaks, improve maintainability, self-documenting code
+
+### 2026-03-17: ESLint Cleanup Strategy
+**By:** Tyrael  
+**Context:** MegaLinter CI failing on zone system branch due to 3 errors + 43 warnings
+**What:**
+   - Unused imports/variables: removed entirely rather than commented out
+   - Unused function params: prefixed with `_` per project eslintrc argsIgnorePattern
+   - Unused assigned variables: removed assignment, kept side-effect call
+   - `as any` cast: replaced with proper types (e.g., `as CharacterInfo`)
+   - Empty catch blocks: added `/* no-op */` comment per no-empty rule
+   - Found and fixed 3 additional warnings (GameLoop.ts, BuffSystem.ts, MobAISystem.ts) beyond the listed 46
+**Result:** Surgical lint-only changes, no game logic modified, TypeScript compilation verified clean
+
+### 2026-03-17: Multi-Zone System Backend Architecture
+**By:** Tyrael (Backend Dev)  
+**Feature:** Issue #3 — Zones, Portals & Dungeon (Phase 2 Backend)  
+**What:**
+   1. **ZoneManager as Central Registry** — Single source of truth for all zone data, centralized zone registration and lookup
+   2. **World as Backward-Compatible Wrapper** — Refactor World to wrap ZoneManager, preserve legacy API with zone-scoped methods alongside
+   3. **Portal Interaction** — 2.0 tile proximity range, validate target zone matches portal to prevent exploits
+   4. **Database Migration** — Auto-add current_zone column with default 'starter-plains' for graceful upgrade
+   5. **Zone Broadcasts** — PlayerJoined/PlayerLeft only sent to players in same zone for spatial isolation
+   6. **Mob Abilities** — Cooldown-based system, Bone Lord rotates abilities, DoT/CC applied via BuffSystem
+   7. **Map Generation** — Hand-crafted zone layouts (Starter Plains, Dark Forest, Ancient Dungeon) with defined spawn points
+   8. **Spawn System** — Zone-aware spawning, 600s Bone Lord respawn timer, shorter timers for regular mobs
+**Why:** Achieves Phase 2 zone isolation requirement without instancing, maintains existing system compatibility, enables future zone-level features
+
+### 2026-03-17: Frontend Zone System — Phase 3 Implementation Plan
+**By:** Leah (Frontend Dev)  
+**Context:** Issue #3 — Multi-zone system with portals and Ancient Dungeon  
+**What:**
+   1. **Zone-Specific Tile Palette System** — Procedural tile textures per zone palette (plains/forest/dungeon) keyed as `tile-{palette}-{tileType}`
+   2. **Portal Rendering** — Pulsing cyan Graphics circles with tweened radius/alpha animation, not as tiles
+   3. **Zone Transition Overlay** — Full-screen fade-to-black with zone name/subtitle during transition
+   4. **Entity State Clearing** — Clear all players (except local), mobs, and loot on zone change
+   5. **New Mob Visual Design** — Distinct geometric shapes and colors (Spider purple octagon, Bandit dark red diamond, Wolf Alpha brown triangle, Skeleton Mage purple skeleton, Bone Lord red/black boss)
+   6. **Mob VFX in VFXManager** — Add `playSkeletonMageProjectile()` and `playBoneLordAura()` methods to singleton
+   7. **Zone Name HUD Display** — Zone name centered at top of screen (x: 640, y: 8) with golden text
+   8. **Tooltip System** — Event-based tooltips emitted from GameScene to HUDScene for portal interaction
+**Why:** Delivers Phase 3 zone rendering and client-side portal/transition mechanics, maintains procedural art style, follows clean code UI patterns
+
 ## Governance
 
 - All meaningful changes require team consensus

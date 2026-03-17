@@ -13,6 +13,7 @@ import {
   CharacterSummary,
   InventoryItem,
   WorldLoot,
+  ZoneId,
 } from './types.js';
 
 // ============================================================
@@ -41,7 +42,7 @@ export enum ClientMessageType {
   DropItem = 'dropItem',
   MoveItem = 'moveItem',
   UseItem = 'useItem',
-
+  UsePortal = 'use_portal',
 }
 
 // --- Auth Messages (Client → Server) ---
@@ -150,6 +151,11 @@ export interface UseItemMessage {
   slot: number;
 }
 
+export interface UsePortalMessage {
+  type: ClientMessageType.UsePortal;
+  targetZone: ZoneId;
+}
+
 export type ClientMessage =
   | RegisterMessage
   | LoginMessage
@@ -168,7 +174,8 @@ export type ClientMessage =
   | PickupItemMessage
   | DropItemMessage
   | MoveItemMessage
-  | UseItemMessage;
+  | UseItemMessage
+  | UsePortalMessage;
 
 // ============================================================
 // Server → Client Messages
@@ -207,6 +214,7 @@ export enum ServerMessageType {
   LootSpawned = 'lootSpawned',
   LootDespawned = 'lootDespawned',
   LootPickedUp = 'lootPickedUp',
+  ZoneChanged = 'zone_changed',
 }
 
 // --- Auth Messages (Server → Client) ---
@@ -380,6 +388,14 @@ export interface LootPickedUpMessage {
   playerId: string;
 }
 
+export interface ZoneChangedMessage {
+  type: ServerMessageType.ZoneChanged;
+  oldZone: ZoneId;
+  newZone: ZoneId;
+  mapData: MapData;
+  playerPosition: Vec2;
+}
+
 export type ServerMessage =
   | RegisterSuccessMessage
   | RegisterFailedMessage
@@ -409,4 +425,5 @@ export type ServerMessage =
   | InventoryUpdateMessage
   | LootSpawnedMessage
   | LootDespawnedMessage
-  | LootPickedUpMessage;
+  | LootPickedUpMessage
+  | ZoneChangedMessage;
