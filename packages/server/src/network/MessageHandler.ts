@@ -12,6 +12,13 @@ import {
   ITEM_DATABASE,
   LOOT_PICKUP_RANGE,
   PORTAL_USE_RANGE,
+  POTION_SHARED_COOLDOWN_MS,
+  BANDAGE_COOLDOWN_MS,
+  TP_SCROLL_COOLDOWN_MS,
+  BANDAGE_HOT_DURATION_MS,
+  BANDAGE_HOT_TOTAL_PERCENT,
+  TICK_INTERVAL,
+  ZONE_PLAYER_SPAWNS,
   distance,
   generateId,
   WorldLoot,
@@ -468,20 +475,81 @@ export class MessageHandler {
       return;
     }
 
+    const now = Date.now();
     const effect = itemDef.useEffect;
+
+    // Check cooldowns for consumables
+    if (itemDef.type === 'consumable') {
+      const cooldownCheck = player.canUseConsumable(invItem.itemId, now);
+      if (!cooldownCheck.canUse) {
+        this.network.sendToPlayer(sessionId, {
+          type: ServerMessageType.Error,
+          message: cooldownCheck.reason || 'Item on cooldown',
+        });
+        return;
+      }
+    }
+
+    // Apply effect based on type
     if (effect.type === 'heal') {
-      const event = player.heal(effect.value, player.id);
+      const healAmount = Math.round((effect.value / 100) * player.maxHealth);
+      const event = player.heal(healAmount, player.id);
       this.network.broadcastToZone(player.currentZone, {
         type: ServerMessageType.DamageDealt,
         event,
       });
+      player.startPotionCooldown(now, POTION_SHARED_COOLDOWN_MS);
     } else if (effect.type === 'mana') {
-      player.mana = Math.min(player.maxMana, player.mana + effect.value);
+      const manaAmount = Math.round((effect.value / 100) * player.maxMana);
+      player.mana = Math.min(player.maxMana, player.mana + manaAmount);
+      player.startPotionCooldown(now, POTION_SHARED_COOLDOWN_MS);
+    } else if (effect.type === 'teleport') {
+      const spawn = ZONE_PLAYER_SPAWNS[player.currentZone];
+      player.position.x = spawn.x;
+      player.position.y = spawn.y;
+      player.setItemCooldown(invItem.itemId, now, TP_SCROLL_COOLDOWN_MS);
+      this.network.broadcastToZone(player.currentZone, {
+        type: ServerMessageType.PlayerMoved,
+        playerId: player.id,
+        position: player.position,
+        seq: 0,
+      });
+    } else if (effect.type === 'buff') {
+      this.applyBandageHoT(player, now);
+      player.setItemCooldown(invItem.itemId, now, BANDAGE_COOLDOWN_MS);
     }
+
+    // Send confirmation
+    this.network.sendToPlayer(sessionId, {
+      type: ServerMessageType.ConsumableUsed,
+      playerId: player.id,
+      itemId: invItem.itemId,
+      effectType: effect.type,
+      value: effect.value,
+    });
+
+    // Send cooldown update
+    this.network.sendToPlayer(sessionId, {
+      type: ServerMessageType.PotionCooldownUpdate,
+      cooldownState: player.getPotionCooldownState(now),
+    });
 
     // Consume one from stack
     player.removeFromInventory(msg.slot, 1);
     this.sendInventoryUpdate(sessionId, player);
+  }
+
+  private applyBandageHoT(player: Player, now: number): void {
+    const ticksCount = Math.floor(BANDAGE_HOT_DURATION_MS / TICK_INTERVAL);
+    const totalHeal = Math.round((BANDAGE_HOT_TOTAL_PERCENT / 100) * player.maxHealth);
+    const healPerTick = Math.floor(totalHeal / ticksCount);
+
+    player.bandageHoTActive = true;
+    player.bandageHoTEndTime = now + BANDAGE_HOT_DURATION_MS;
+    player.bandageHoTTicksRemaining = ticksCount;
+
+    // Store heal per tick in a simple way
+    (player as any).bandageHealPerTick = healPerTick;
   }
 
   private sendInventoryUpdate(sessionId: string, player: Player): void {

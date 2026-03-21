@@ -12,6 +12,9 @@ import {
   CharacterInfo,
   InventoryItem,
   ZoneId,
+  EquipmentSlot,
+  PlayerEquipment,
+  ItemStats,
   CLASS_STATS,
   CLASS_ABILITIES,
   PLAYER_SPAWN_X,
@@ -24,6 +27,7 @@ import {
   INVENTORY_SIZE,
   ITEM_DATABASE,
   ZONE_PLAYER_SPAWNS,
+  EQUIPMENT_SLOT_FOR_ITEM_TYPE,
   xpForLevel,
 } from '@isoheim/shared';
 import type { BuffSystem } from '../systems/BuffSystem.js';
@@ -60,8 +64,26 @@ export class Player {
   // Respawn
   respawnTimer: number = 0;
 
+  // Consumables
+  potionSharedCooldownUntil: number = 0;
+  itemCooldowns: Map<string, number> = new Map();
+  bandageHoTActive: boolean = false;
+  bandageHoTEndTime: number = 0;
+  bandageHoTTicksRemaining: number = 0;
+
   // Inventory
   inventory: InventoryItem[] = [];
+
+  // Equipment
+  equipment: Map<EquipmentSlot, string | null> = new Map([
+    [EquipmentSlot.Weapon, null],
+    [EquipmentSlot.Head, null],
+    [EquipmentSlot.Chest, null],
+    [EquipmentSlot.Legs, null],
+    [EquipmentSlot.Boots, null],
+    [EquipmentSlot.Ring1, null],
+    [EquipmentSlot.Ring2, null],
+  ]);
 
   // Zone
   currentZone: ZoneId = ZoneId.StarterPlains;
@@ -148,6 +170,12 @@ export class Player {
     this.health = Math.max(0, this.health - actualDamage);
     this.inCombat = true;
     this.lastCombatTime = Date.now();
+
+    // Interrupt bandage HoT on damage
+    if (this.bandageHoTActive) {
+      this.bandageHoTActive = false;
+      this.bandageHoTTicksRemaining = 0;
+    }
 
     const event: DamageEvent = {
       sourceId,
@@ -308,16 +336,151 @@ export class Player {
     return states;
   }
 
+  canUseConsumable(itemId: string, now: number): { canUse: boolean; reason?: string } {
+    const itemCd = this.itemCooldowns.get(itemId);
+    if (itemCd && itemCd > now) {
+      return { canUse: false, reason: 'Item on cooldown' };
+    }
+    if (this.potionSharedCooldownUntil > now) {
+      return { canUse: false, reason: 'Potion cooldown active' };
+    }
+    return { canUse: true };
+  }
+
+  startPotionCooldown(now: number, sharedCooldownMs: number): void {
+    this.potionSharedCooldownUntil = now + sharedCooldownMs;
+  }
+
+  setItemCooldown(itemId: string, now: number, cooldownMs: number): void {
+    this.itemCooldowns.set(itemId, now + cooldownMs);
+  }
+
+  getPotionCooldownState(now: number): { sharedCooldownMs: number; itemCooldowns: Record<string, number> } {
+    const sharedMs = Math.max(0, this.potionSharedCooldownUntil - now);
+    const itemCds: Record<string, number> = {};
+    for (const [itemId, expiry] of this.itemCooldowns) {
+      const remaining = Math.max(0, expiry - now);
+      if (remaining > 0) {
+        itemCds[itemId] = remaining;
+      }
+    }
+    return { sharedCooldownMs: sharedMs, itemCooldowns: itemCds };
+  }
+
   getEffectiveStats(buffSystem: BuffSystem): ClassStats {
     const mods = buffSystem.getStatModifiers(this.id);
+    const equipStats = this.getEquippedStats();
+    
+    // Recalculate max health/mana with equipment
+    const baseMaxHealth = this.maxHealth;
+    const baseMaxMana = this.maxMana;
+    const equipMaxHealth = baseMaxHealth + (equipStats.health || 0);
+    const equipMaxMana = baseMaxMana + (equipStats.mana || 0);
+
     return {
-      maxHealth: Math.round(this.maxHealth * mods.maxHealth),
-      maxMana: Math.round(this.maxMana * mods.maxMana),
-      attack: Math.round(this.stats.attack * mods.attack),
-      defense: Math.round(this.stats.defense * mods.defense),
-      speed: this.stats.speed * mods.speed,
+      maxHealth: Math.round(equipMaxHealth * mods.maxHealth),
+      maxMana: Math.round(equipMaxMana * mods.maxMana),
+      attack: Math.round((this.stats.attack + (equipStats.attack || 0)) * mods.attack),
+      defense: Math.round((this.stats.defense + (equipStats.defense || 0)) * mods.defense),
+      speed: (this.stats.speed + (equipStats.speed || 0)) * mods.speed,
       attackRange: this.stats.attackRange,
       attackSpeed: this.stats.attackSpeed,
+    };
+  }
+
+  getEquippedStats(): ItemStats {
+    const stats: ItemStats = {
+      attack: 0,
+      defense: 0,
+      health: 0,
+      mana: 0,
+      speed: 0,
+      critChance: 0,
+    };
+
+    for (const itemId of this.equipment.values()) {
+      if (!itemId) continue;
+      const itemDef = ITEM_DATABASE[itemId];
+      if (!itemDef || !itemDef.stats) continue;
+
+      if (itemDef.stats.attack) stats.attack! += itemDef.stats.attack;
+      if (itemDef.stats.defense) stats.defense! += itemDef.stats.defense;
+      if (itemDef.stats.health) stats.health! += itemDef.stats.health;
+      if (itemDef.stats.mana) stats.mana! += itemDef.stats.mana;
+      if (itemDef.stats.speed) stats.speed! += itemDef.stats.speed;
+      if (itemDef.stats.critChance) stats.critChance! += itemDef.stats.critChance;
+    }
+
+    return stats;
+  }
+
+  equipItem(inventorySlot: number, equipSlot: EquipmentSlot): boolean {
+    const invItem = this.inventory.find(i => i.slot === inventorySlot);
+    if (!invItem) return false;
+
+    const itemDef = ITEM_DATABASE[invItem.itemId];
+    if (!itemDef) return false;
+
+    // Check if item can be equipped in this slot
+    const correctSlot = EQUIPMENT_SLOT_FOR_ITEM_TYPE[itemDef.type];
+    if (!correctSlot) return false;
+
+    // For rings, allow either Ring1 or Ring2
+    if (itemDef.type === 'ring' && equipSlot !== EquipmentSlot.Ring1 && equipSlot !== EquipmentSlot.Ring2) {
+      return false;
+    } else if (itemDef.type !== 'ring' && correctSlot !== equipSlot) {
+      return false;
+    }
+
+    // Check level requirement
+    if (this.level < itemDef.levelReq) return false;
+
+    // Check class requirement
+    if (itemDef.classReq.length > 0 && !itemDef.classReq.includes(this.classType)) {
+      return false;
+    }
+
+    // If slot is occupied, unequip current item first
+    const currentItemId = this.equipment.get(equipSlot);
+    if (currentItemId) {
+      // Try to move to inventory
+      if (!this.addToInventory(currentItemId, 1)) {
+        return false; // Inventory full
+      }
+    }
+
+    // Equip new item
+    this.equipment.set(equipSlot, invItem.itemId);
+    this.removeFromInventory(inventorySlot, 1);
+
+    return true;
+  }
+
+  unequipItem(equipSlot: EquipmentSlot): boolean {
+    const itemId = this.equipment.get(equipSlot);
+    if (!itemId) return false;
+
+    // Check inventory has space
+    if (this.isInventoryFull()) return false;
+
+    // Move to inventory
+    if (!this.addToInventory(itemId, 1)) return false;
+
+    // Remove from equipment
+    this.equipment.set(equipSlot, null);
+
+    return true;
+  }
+
+  getEquipmentState(): PlayerEquipment {
+    return {
+      [EquipmentSlot.Weapon]: this.equipment.get(EquipmentSlot.Weapon) || undefined,
+      [EquipmentSlot.Head]: this.equipment.get(EquipmentSlot.Head) || undefined,
+      [EquipmentSlot.Chest]: this.equipment.get(EquipmentSlot.Chest) || undefined,
+      [EquipmentSlot.Legs]: this.equipment.get(EquipmentSlot.Legs) || undefined,
+      [EquipmentSlot.Boots]: this.equipment.get(EquipmentSlot.Boots) || undefined,
+      [EquipmentSlot.Ring1]: this.equipment.get(EquipmentSlot.Ring1) || undefined,
+      [EquipmentSlot.Ring2]: this.equipment.get(EquipmentSlot.Ring2) || undefined,
     };
   }
 
@@ -339,6 +502,7 @@ export class Player {
       targetId: this.targetId,
       buffs: buffSystem ? buffSystem.getBuffStates(this.id) : [],
       currentZone: this.currentZone,
+      equipment: this.getEquipmentState(),
     };
   }
 

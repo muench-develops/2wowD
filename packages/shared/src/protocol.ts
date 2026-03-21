@@ -14,6 +14,9 @@ import {
   InventoryItem,
   WorldLoot,
   ZoneId,
+  EquipmentSlot,
+  PlayerEquipment,
+  PotionCooldownState,
 } from './types.js';
 
 // ============================================================
@@ -44,6 +47,8 @@ export enum ClientMessageType {
   MoveItem = 'moveItem',
   UseItem = 'useItem',
   UsePortal = 'use_portal',
+  EquipItem = 'equip_item',
+  UnequipItem = 'unequip_item',
 }
 
 // --- Auth Messages (Client → Server) ---
@@ -161,6 +166,17 @@ export interface UsePortalMessage {
   targetZone: ZoneId;
 }
 
+export interface EquipItemMessage {
+  type: ClientMessageType.EquipItem;
+  slot: number;
+  equipSlot: EquipmentSlot;
+}
+
+export interface UnequipItemMessage {
+  type: ClientMessageType.UnequipItem;
+  equipSlot: EquipmentSlot;
+}
+
 export type ClientMessage =
   | RegisterMessage
   | LoginMessage
@@ -181,7 +197,9 @@ export type ClientMessage =
   | DropItemMessage
   | MoveItemMessage
   | UseItemMessage
-  | UsePortalMessage;
+  | UsePortalMessage
+  | EquipItemMessage
+  | UnequipItemMessage;
 
 // ============================================================
 // Server → Client Messages
@@ -221,6 +239,9 @@ export enum ServerMessageType {
   LootDespawned = 'lootDespawned',
   LootPickedUp = 'lootPickedUp',
   ZoneChanged = 'zone_changed',
+  ConsumableUsed = 'consumable_used',
+  PotionCooldownUpdate = 'potion_cooldown_update',
+  EquipmentUpdate = 'equipment_update',
 }
 
 // --- Auth Messages (Server → Client) ---
@@ -403,6 +424,24 @@ export interface ZoneChangedMessage {
   playerPosition: Vec2;
 }
 
+export interface ConsumableUsedMessage {
+  type: ServerMessageType.ConsumableUsed;
+  playerId: string;
+  itemId: string;
+  effectType: 'heal' | 'mana' | 'teleport' | 'buff';
+  value: number;
+}
+
+export interface PotionCooldownUpdateMessage {
+  type: ServerMessageType.PotionCooldownUpdate;
+  cooldownState: PotionCooldownState;
+}
+
+export interface EquipmentUpdateMessage {
+  type: ServerMessageType.EquipmentUpdate;
+  equipment: PlayerEquipment;
+}
+
 export type ServerMessage =
   | RegisterSuccessMessage
   | RegisterFailedMessage
@@ -433,4 +472,7 @@ export type ServerMessage =
   | LootSpawnedMessage
   | LootDespawnedMessage
   | LootPickedUpMessage
-  | ZoneChangedMessage;
+  | ZoneChangedMessage
+  | ConsumableUsedMessage
+  | PotionCooldownUpdateMessage
+  | EquipmentUpdateMessage;
