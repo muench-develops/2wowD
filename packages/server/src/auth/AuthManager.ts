@@ -204,6 +204,7 @@ export class AuthManager {
       health: row.health,
       mana: row.mana,
       currentZone,
+      gold: row.gold ?? 0,
       createdAt: row.created_at,
       lastPlayed: row.last_played,
     };

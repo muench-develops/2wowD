@@ -36,14 +36,20 @@ import {
   type LootPickedUpMessage,
   type ZoneChangedMessage,
   type EquipmentUpdateMessage,
+  type NPCListMessage,
+  type NPCDialogueMessage,
+  type QuestUpdateMessage,
+  type QuestCompletedMessage,
   type WorldLoot,
   type PlayerEquipment,
+  NpcId,
 } from '@isoheim/shared';
 import { NetworkManager } from '../network/NetworkManager';
 import { InputSystem } from '../systems/InputSystem';
 import { CameraSystem } from '../systems/CameraSystem';
 import { PlayerEntity } from '../entities/PlayerEntity';
 import { MobEntity } from '../entities/MobEntity';
+import { NpcEntity } from '../entities/NpcEntity';
 import { FloatingText } from '../entities/FloatingText';
 import { getDepthForPosition } from '../systems/IsometricHelper';
 import { SoundManager } from '../systems/SoundManager';
@@ -63,6 +69,7 @@ export class GameScene extends Phaser.Scene {
 
   private players = new Map<string, PlayerEntity>();
   private mobs = new Map<string, MobEntity>();
+  private npcs = new Map<NpcId, NpcEntity>();
 
   private selectedTargetId: string | null = null;
 
@@ -140,10 +147,23 @@ export class GameScene extends Phaser.Scene {
 
       for (const obj of hits) {
         const entityId = obj.getData('entityId') as string | undefined;
+        const entityType = obj.getData('entityType') as string | undefined;
+        
         if (entityId) {
-          this.selectTarget(entityId);
-          foundEntity = true;
-          break;
+          if (entityType === 'npc') {
+            // Interact with NPC
+            this.net.send({
+              type: ClientMessageType.InteractNPC,
+              npcId: entityId as NpcId,
+            });
+            foundEntity = true;
+            break;
+          } else {
+            // Select target (player or mob)
+            this.selectTarget(entityId);
+            foundEntity = true;
+            break;
+          }
         }
       }
 
@@ -488,6 +508,40 @@ export class GameScene extends Phaser.Scene {
 
     this.net.on(ServerMessageType.EquipmentUpdate, (msg: EquipmentUpdateMessage) => {
       this.events.emit('equipmentUpdate', msg.equipment);
+    });
+
+    // NPC & Quest handlers
+    this.net.on(ServerMessageType.NPCList, (msg: NPCListMessage) => {
+      // Clear existing NPCs
+      for (const npc of this.npcs.values()) {
+        npc.destroy();
+      }
+      this.npcs.clear();
+
+      // Spawn NPCs
+      for (const npcData of msg.npcs) {
+        const npc = new NpcEntity(
+          this,
+          npcData.id,
+          npcData.position.x,
+          npcData.position.y,
+          npcData.hasQuest,
+          npcData.questReady
+        );
+        this.npcs.set(npcData.id, npc);
+      }
+    });
+
+    this.net.on(ServerMessageType.NPCDialogue, (msg: NPCDialogueMessage) => {
+      this.events.emit('npcDialogue', msg);
+    });
+
+    this.net.on(ServerMessageType.QuestUpdate, (msg: QuestUpdateMessage) => {
+      this.events.emit('questUpdate', msg);
+    });
+
+    this.net.on(ServerMessageType.QuestCompleted, (msg: QuestCompletedMessage) => {
+      this.events.emit('questCompleted', msg);
     });
   }
 

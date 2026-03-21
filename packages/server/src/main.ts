@@ -9,6 +9,7 @@ import { MobAISystem } from './systems/MobAISystem.js';
 import { SpawnSystem } from './systems/SpawnSystem.js';
 import { ChatSystem } from './systems/ChatSystem.js';
 import { LootSystem } from './systems/LootSystem.js';
+import { QuestManager } from './systems/QuestManager.js';
 import { ZoneManager } from './systems/ZoneManager.js';
 import { generateStarterPlainsMap } from './maps/StarterPlainsMap.js';
 import { generateDarkForestMap } from './maps/DarkForestMap.js';
@@ -58,9 +59,11 @@ function main(): void {
   const spawnSystem = new SpawnSystem(network);
   const chatSystem = new ChatSystem(network);
   const lootSystem = new LootSystem(network);
+  const questManager = new QuestManager(network);
 
-  // Wire loot into combat
+  // Wire loot and quest into combat
   combatSystem.setLootSystem(lootSystem);
+  combatSystem.setQuestManager(questManager);
 
   // Create message handler
   const messageHandler = new MessageHandler(
@@ -70,6 +73,7 @@ function main(): void {
     combatSystem,
     chatSystem,
     lootSystem,
+    questManager,
     authManager,
     db,
   );

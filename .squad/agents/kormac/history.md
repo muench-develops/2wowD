@@ -136,3 +136,43 @@
 - VFX code is prone to magic number accumulation due to many visual parameters per effect
 
 **Assignments:** Tyrael (server bugs #1-5, function size #6), Leah (VFX magic numbers #9, naming #10, DRY #7)
+
+### PR #20 Re-Review (2026-03-21) — Wave B: Potions & Equipment (Revision) — APPROVED & MERGED
+**Verdict:** ✅ APPROVED (2026-03-21T17:40:00Z)
+
+**Context:** Re-reviewed revision commits after requesting changes on 13 issues. Lockout-swap: Leah fixed Tyrael's code (issues 1-6, 8-10), Tyrael fixed Leah's code (issues 7, 11-13).
+
+**All 13 Issues Verified:**
+1. ✅ EquipItem/UnequipItem dispatch cases + handler methods in MessageHandler
+2. ✅ `db.loadEquipment()` called in handleSelectCharacter, equipment entries copied into player map
+3. ✅ `db.saveEquipment()` added to both saveAndRemovePlayer() and saveAllPlayers()
+4. ✅ `bandageHealPerTick: number = 0` declared as proper Player field
+5. ✅ GameScene effectType uses union type `'heal' | 'mana' | 'teleport' | 'buff'`; zero `as any` casts remain across entire codebase
+6. ✅ `applyHealConsumable()`, `applyManaConsumable()`, `applyTeleportConsumable()` extracted from handleUseItem
+7. ✅ `formatItemStats()` shared helper in `ui/formatItemStats.ts`, used by both CharacterPanel and InventoryPanel
+8. ✅ `createDefaultEquipmentMap()` in `@isoheim/shared/utils`, used by Player.ts and Database.ts
+9. ✅ 46 `private static readonly` VFX constants replace all consumable effect magic numbers
+10. ✅ Single-letter VFX vars renamed: g→graphics, ox→offsetX, a→angle, r→radius, px→particleX, py→particleY
+11. ✅ `sep` → `separator` in CharacterPanel.addSeparator()
+12. ✅ Dead `color` variable removed from InventoryPanel.buildComparisonText()
+13. ✅ Unused STAT_NEUTRAL_COLOR constant removed from InventoryPanel
+
+**Build Status:** All 3 packages compile clean. No new issues introduced.
+
+**Note:** handleUseItem is ~50 lines post-extraction but is now pure orchestration (validate → dispatch → notify → update). Each effect method is 6-15 lines. Acceptable — further splitting would scatter the use-item flow across too many methods.
+
+**Key Learnings:**
+- Lockout-swap review pattern works well: each dev fixes the other's code, forcing cross-understanding
+- `createDefaultEquipmentMap()` in shared is the right DRY pattern for cross-package initialization logic
+- Union types (`'heal' | 'mana' | 'teleport' | 'buff'`) are the correct replacement for `as any` on string-typed message fields
+- VFX constants should be `private static readonly` on the class, not module-level, to keep them scoped to the VFX domain
+- Integration checklist essential: client sends → server handles → server persists → server loads → server sends → client renders
+
+**Merge Timeline:**
+- Re-review approval: 2026-03-21T17:40:00Z
+- PR #20 squash merged to main: 2026-03-21T17:41:00Z
+- Branch squad/5-potions-consumables deleted
+- Issues #5 (Potions) and #6 (Equipment) closed
+- Wave B shipped. Ready for Wave C planning.
+
+**Outcome:** PR successfully merged to main. Wave B features live in production. All requested changes implemented and verified.

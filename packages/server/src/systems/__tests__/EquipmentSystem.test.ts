@@ -348,12 +348,12 @@ describe('EquipmentSystem', () => {
 
     it('should block equipping class-restricted item', () => {
       // Setup: Warrior trying to equip mage staff (classReq: [Mage])
-      player.classType = ClassType.Warrior;
-      player.addToInventory('apprentice_staff', 1); // requires Mage class
+      const warriorPlayer = new Player('test-warrior', 'TestWarrior', ClassType.Warrior);
+      warriorPlayer.addToInventory('apprentice_staff', 1); // requires Mage class
 
       // Action: Try to equip
-      // const slot = player.inventory.find(i => i.itemId === 'apprentice_staff')!.slot;
-      // const result = equipmentSystem.equipItem(player, slot, 'weapon');
+      // const slot = warriorPlayer.inventory.find(i => i.itemId === 'apprentice_staff')!.slot;
+      // const result = equipmentSystem.equipItem(warriorPlayer, slot, 'weapon');
 
       // Assert: Equip fails
       // expect(result.ok).toBe(false);
@@ -363,12 +363,12 @@ describe('EquipmentSystem', () => {
 
     it('should allow equipping items with no class restriction', () => {
       // Setup: Any class with unrestricted item (classReq: all classes)
-      player.classType = ClassType.Priest;
-      player.addToInventory('iron_sword', 1); // no class restriction
+      const priestPlayer = new Player('test-priest', 'TestPriest', ClassType.Priest);
+      priestPlayer.addToInventory('iron_sword', 1); // no class restriction
 
       // Action: Equip
-      // const slot = player.inventory.find(i => i.itemId === 'iron_sword')!.slot;
-      // const result = equipmentSystem.equipItem(player, slot, 'weapon');
+      // const slot = priestPlayer.inventory.find(i => i.itemId === 'iron_sword')!.slot;
+      // const result = equipmentSystem.equipItem(priestPlayer, slot, 'weapon');
 
       // Assert: Equip succeeds
       // expect(result.ok).toBe(true);

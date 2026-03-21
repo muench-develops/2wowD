@@ -1,5 +1,17 @@
 import Phaser from 'phaser';
-import { type AbilityDef, type CooldownState, type ChatMessage, type MapData, type BuffState, type InventoryItem, type WorldLoot, type PlayerEquipment } from '@isoheim/shared';
+import {
+  type AbilityDef,
+  type CooldownState,
+  type ChatMessage,
+  type MapData,
+  type BuffState,
+  type InventoryItem,
+  type WorldLoot,
+  type PlayerEquipment,
+  type NPCDialogueMessage,
+  type QuestUpdateMessage,
+  type QuestCompletedMessage,
+} from '@isoheim/shared';
 import { HealthBar } from '../ui/HealthBar';
 import { ActionBar } from '../ui/ActionBar';
 import { ChatPanel } from '../ui/ChatPanel';
@@ -12,6 +24,9 @@ import { InventoryPanel } from '../ui/InventoryPanel';
 import { LootWindow } from '../ui/LootWindow';
 import { CharacterPanel, type CharacterStatsData } from '../ui/CharacterPanel';
 import { GuideSystem } from '../ui/GuideSystem.js';
+import { DialoguePanel } from '../ui/DialoguePanel';
+import { QuestTracker } from '../ui/QuestTracker';
+import { QuestLog } from '../ui/QuestLog';
 import { NetworkManager } from '../network/NetworkManager';
 import { SoundManager } from '../systems/SoundManager';
 
@@ -30,6 +45,9 @@ export class HUDScene extends Phaser.Scene {
   private lootWindow!: LootWindow;
   private characterPanel!: CharacterPanel;
   private guideSystem!: GuideSystem;
+  private dialoguePanel!: DialoguePanel;
+  private questTracker!: QuestTracker;
+  private questLog!: QuestLog;
   private helpButton!: Phaser.GameObjects.Text;
   private latencyText!: Phaser.GameObjects.Text;
   private muteIndicator!: Phaser.GameObjects.Text;
@@ -105,6 +123,16 @@ export class HUDScene extends Phaser.Scene {
 
     // Guide system
     this.guideSystem = new GuideSystem(this, this.gameScene);
+
+    // Dialogue Panel
+    this.dialoguePanel = new DialoguePanel(this);
+
+    // Quest Tracker
+    this.questTracker = new QuestTracker(this);
+
+    // Quest Log
+    this.questLog = new QuestLog(this);
+
     this.helpButton = this.add.text(1260, 16, '❓', { fontSize: '20px' })
       .setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(800)
       .on('pointerdown', () => this.guideSystem.showCurrentTip());
@@ -279,6 +307,35 @@ export class HUDScene extends Phaser.Scene {
       }
     });
 
+    // NPC & Quest handlers
+    this.onGameScene('npcDialogue', (msg: NPCDialogueMessage) => {
+      this.dialoguePanel.show(
+        msg.npcId,
+        msg.dialogue,
+        msg.availableQuests,
+        msg.activeQuests,
+        msg.completableQuests
+      );
+    });
+
+    this.onGameScene('questUpdate', (msg: QuestUpdateMessage) => {
+      this.questTracker.updateQuest(msg.questId, msg.objectives);
+      this.questLog.updateQuest(msg.questId, msg.objectives, msg.state);
+    });
+
+    this.onGameScene('questCompleted', (msg: QuestCompletedMessage) => {
+      this.questTracker.removeQuest(msg.questId);
+      this.showQuestCompletedNotification(msg);
+    });
+
+    // Keyboard shortcuts
+    this.input.keyboard?.on('keydown-I', () => this.inventoryPanel.toggle());
+    this.input.keyboard?.on('keydown-C', () => this.characterPanel.toggle());
+    this.input.keyboard?.on('keydown-M', () => this.minimap.toggle());
+    this.input.keyboard?.on('keydown-ESC', () => this.escMenu.toggle());
+    this.input.keyboard?.on('keydown-L', () => this.questLog.toggle());
+    this.input.keyboard?.on('keydown-Q', () => this.questLog.toggle());
+
     // Listen for chat focus changes in game scene's input system
     this.onGameScene('chatFocusChanged', (focused: boolean) => {
       // The InputSystem in GameScene will read this
@@ -326,6 +383,27 @@ export class HUDScene extends Phaser.Scene {
       onComplete: () => {
         errorText.destroy();
       },
+    });
+  }
+
+  private showQuestCompletedNotification(msg: QuestCompletedMessage): void {
+    const text = `Quest Complete!\n+${msg.rewards.xp} XP  +${msg.rewards.gold} Gold`;
+    const questText = this.add.text(640, 200, text, {
+      fontFamily: 'monospace',
+      fontSize: '18px',
+      color: '#ffcc00',
+      stroke: '#000000',
+      strokeThickness: 3,
+      align: 'center',
+    });
+    questText.setOrigin(0.5).setDepth(2000).setAlpha(1);
+
+    this.tweens.add({
+      targets: questText,
+      alpha: 0,
+      y: 180,
+      duration: 4000,
+      onComplete: () => questText.destroy(),
     });
   }
 

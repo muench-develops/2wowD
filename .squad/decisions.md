@@ -156,6 +156,63 @@ Implemented dual-cooldown system for consumables:
 - Right-click context-sensitivity (equip vs use) is standard MMO UX
 - Equipment bonuses shown inline avoid separate tooltip needs for equipped gear impact
 
+### 2026-03-21: PR #20 Review — Integration Verification Required
+**By:** Kormac (Code Reviewer)
+**Date:** 2026-03-21
+**Context:** PR #20 Wave B review found 3 critical integration bugs
+
+**Observation:**
+When features are split across server (Tyrael) and client (Leah) on the same branch, integration gaps can occur:
+- Message handlers added to protocol but not wired in server dispatch
+- Persistence methods added to Database but never called from save/load paths
+
+**Recommendation:**
+For future multi-agent feature branches:
+1. **Integration checklist** before PR: For every new `ClientMessageType`, verify a corresponding `case` in `handleMessage()` switch
+2. **Persistence checklist**: For every new entity state (equipment, buffs, etc.), verify it's in both `saveAndRemovePlayer()` AND `handleSelectCharacter()` load path
+3. **Full roundtrip smoke test**: client sends → server handles → server persists → server loads → server responds → client renders
+
+**Impact:**
+PR #20 blocked until Tyrael adds equip/unequip handlers + persistence wiring. ~3 critical bugs, all in MessageHandler.ts integration layer. Post-fix re-review approved all 13 requested changes.
+
+### 2026-03-21: createDefaultEquipmentMap shared helper
+**By:** Leah (Frontend Dev, cross-domain assignment)
+**Date:** 2026-03-21
+**Context:** Kormac review fix — DRY issue #8
+
+**What:**
+Created `createDefaultEquipmentMap()` utility function in `packages/shared/src/utils.ts` that returns a `Map<EquipmentSlot, string | null>` with all 7 equipment slots initialized to `null`. Exported from shared index.ts.
+
+**Where used:**
+- `packages/server/src/entities/Player.ts` — equipment field initializer
+- `packages/server/src/database/Database.ts` — `loadEquipment()` default map
+
+**Why:**
+The 7-slot equipment Map initialization was duplicated identically in 2 files. Centralizing it ensures consistency if slots change and follows DRY principle. Placed in shared utils since both server and potentially client need it.
+
+**Impact:**
+- Any future equipment slot additions only need to be changed in one place
+- Shared package is the correct home since EquipmentSlot is already a shared type
+
+### 2026-03-21: Extract formatItemStats() shared UI helper
+**By:** Tyrael (Backend Dev, cross-domain assignment)
+**Date:** 2026-03-21
+**Context:** Kormac review rejection on PR #20, DRY issue #7
+
+**What:**
+Created `packages/client/src/ui/formatItemStats.ts` with a single function `formatItemStats(stats: ItemStats): string` that builds the stat text block used in item tooltips.
+
+**Why:**
+CharacterPanel.showEquipTooltip() and InventoryPanel.showTooltip() had identical 6-line stat text building blocks. Extracting to a shared helper eliminates duplication and ensures future stat additions only need one change.
+
+**Alternatives Considered:**
+- Inline the logic in a base class — overkill, panels don't share an inheritance chain
+- Put it in shared package — it's UI-presentation logic, belongs in client
+
+**Impact:**
+- Both panels now import and call `formatItemStats()` instead of inline stat blocks
+- No behavioral change; output is identical
+
 ## Governance
 
 - All meaningful changes require team consensus

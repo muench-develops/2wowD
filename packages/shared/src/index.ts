@@ -39,6 +39,15 @@ export {
   ZoneId,
   type ZoneMetadata,
   type Portal,
+  // NPC & Quests
+  NpcId,
+  QuestId,
+  QuestObjectiveType,
+  QuestState,
+  type QuestObjective,
+  type QuestReward,
+  type QuestDef,
+  type NpcDef,
 } from './types.js';
 
 // Constants
@@ -112,6 +121,10 @@ export {
   ZONE_METADATA,
   ZONE_PLAYER_SPAWNS,
   ZONE_PORTALS,
+  // NPC & Quests
+  NPC_INTERACTION_RANGE,
+  NPC_DEFINITIONS,
+  QUEST_DEFINITIONS,
 } from './constants.js';
 
 // Protocol
@@ -178,6 +191,15 @@ export {
   type EquipItemMessage,
   type UnequipItemMessage,
   type EquipmentUpdateMessage,
+  // NPC & Quests
+  type InteractNPCMessage,
+  type AcceptQuestMessage,
+  type AbandonQuestMessage,
+  type TurnInQuestMessage,
+  type NPCDialogueMessage,
+  type QuestUpdateMessage,
+  type QuestCompletedMessage,
+  type NPCListMessage,
 } from './protocol.js';
 
 // Utils

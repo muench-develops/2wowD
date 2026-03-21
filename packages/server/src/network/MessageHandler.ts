@@ -4,16 +4,27 @@ import {
   ServerMessageType,
   ChatChannel,
   ClassType,
+  QuestState,
+  QuestId,
+  QuestObjective,
   PickupItemMessage,
   DropItemMessage,
   MoveItemMessage,
   UseItemMessage,
   EquipItemMessage,
   UnequipItemMessage,
+  InteractNPCMessage,
+  AcceptQuestMessage,
+  AbandonQuestMessage,
+  TurnInQuestMessage,
   ZoneId,
+  NpcId,
   ITEM_DATABASE,
   LOOT_PICKUP_RANGE,
   PORTAL_USE_RANGE,
+  NPC_INTERACTION_RANGE,
+  NPC_DEFINITIONS,
+  QUEST_DEFINITIONS,
   POTION_SHARED_COOLDOWN_MS,
   BANDAGE_COOLDOWN_MS,
   TP_SCROLL_COOLDOWN_MS,
@@ -26,12 +37,14 @@ import {
   WorldLoot,
 } from '@isoheim/shared';
 import { Player } from '../entities/Player.js';
+import { Npc } from '../entities/Npc.js';
 import { World } from '../core/World.js';
 import { NetworkManager } from './NetworkManager.js';
 import { MovementSystem } from '../systems/MovementSystem.js';
 import { CombatSystem } from '../systems/CombatSystem.js';
 import { ChatSystem } from '../systems/ChatSystem.js';
 import { LootSystem } from '../systems/LootSystem.js';
+import { QuestManager } from '../systems/QuestManager.js';
 import { AuthManager } from '../auth/AuthManager.js';
 import { Database } from '../database/Database.js';
 
@@ -42,11 +55,15 @@ export class MessageHandler {
   private combatSystem: CombatSystem;
   private chatSystem: ChatSystem;
   private lootSystem: LootSystem;
+  private questManager: QuestManager;
   private authManager: AuthManager;
   private db: Database;
 
   /** Map session id → player id (they're the same in our case) */
   private sessions: Map<string, string> = new Map();
+
+  /** NPC instances keyed by NpcId */
+  private npcs: Map<NpcId, Npc> = new Map();
 
   constructor(
     world: World,
@@ -55,6 +72,7 @@ export class MessageHandler {
     combatSystem: CombatSystem,
     chatSystem: ChatSystem,
     lootSystem: LootSystem,
+    questManager: QuestManager,
     authManager: AuthManager,
     db: Database,
   ) {
@@ -64,8 +82,14 @@ export class MessageHandler {
     this.combatSystem = combatSystem;
     this.chatSystem = chatSystem;
     this.lootSystem = lootSystem;
+    this.questManager = questManager;
     this.authManager = authManager;
     this.db = db;
+
+    // Initialize NPC instances
+    for (const npcId of Object.values(NpcId)) {
+      this.npcs.set(npcId, new Npc(npcId));
+    }
   }
 
   handleMessage(sessionId: string, message: ClientMessage): void {
@@ -173,6 +197,22 @@ export class MessageHandler {
       case ClientMessageType.UsePortal:
         this.handleUsePortal(sessionId, message.targetZone);
         break;
+
+      case ClientMessageType.InteractNPC:
+        this.handleInteractNPC(sessionId, message as InteractNPCMessage);
+        break;
+
+      case ClientMessageType.AcceptQuest:
+        this.handleAcceptQuest(sessionId, message as AcceptQuestMessage);
+        break;
+
+      case ClientMessageType.AbandonQuest:
+        this.handleAbandonQuest(sessionId, message as AbandonQuestMessage);
+        break;
+
+      case ClientMessageType.TurnInQuest:
+        this.handleTurnInQuest(sessionId, message as TurnInQuestMessage);
+        break;
     }
   }
 
@@ -261,6 +301,25 @@ export class MessageHandler {
       return;
     }
 
+    const player = this.loadPlayerData(sessionId, charInfo);
+    this.sessions.set(sessionId, player.id);
+    this.world.addPlayer(player);
+
+    // Load quest progress
+    const savedQuests = this.db.loadQuestProgress(charInfo.id);
+    this.questManager.initPlayer(player.id, savedQuests);
+
+    // Get tutorial completion status
+    const tutorialComplete = this.db.isTutorialComplete(charInfo.id);
+
+    this.sendPlayerWelcome(sessionId, player, tutorialComplete);
+    this.broadcastPlayerJoined(player);
+
+    this.chatSystem.sendSystemMessage(`${player.name} has joined the game.`, this.world);
+    console.log(`[Game] Character selected: ${charInfo.name} (${charInfo.classType}) in zone ${player.currentZone} [${sessionId}]`);
+  }
+
+  private loadPlayerData(sessionId: string, charInfo: any): Player {
     const player = Player.fromCharacterInfo(sessionId, charInfo);
     player.inventory = this.db.loadInventory(charInfo.id);
     const savedEquipment = this.db.loadEquipment(charInfo.id);
@@ -269,15 +328,12 @@ export class MessageHandler {
         player.equipment.set(slot, itemId);
       }
     }
-    this.sessions.set(sessionId, player.id);
-    this.world.addPlayer(player);
+    return player;
+  }
 
-    // Get map data for player's current zone
+  private sendPlayerWelcome(sessionId: string, player: Player, tutorialComplete: boolean): void {
     const playerZone = this.world.zoneManager.getZone(player.currentZone);
     const mapData = playerZone ? playerZone.mapData : this.world.mapData;
-
-    // Get tutorial completion status
-    const tutorialComplete = this.db.isTutorialComplete(charInfo.id);
 
     // Send welcome with map data
     this.network.sendToPlayer(sessionId, {
@@ -299,7 +355,11 @@ export class MessageHandler {
       });
     }
 
-    // Broadcast to others in the same zone
+    // Send NPC list for current zone
+    this.sendNpcList(sessionId, player);
+  }
+
+  private broadcastPlayerJoined(player: Player): void {
     const zonePlayers = this.world.zoneManager.getPlayersInZone(player.currentZone);
     for (const otherPlayer of zonePlayers) {
       if (otherPlayer.id !== player.id) {
@@ -309,9 +369,6 @@ export class MessageHandler {
         });
       }
     }
-
-    this.chatSystem.sendSystemMessage(`${player.name} has joined the game.`, this.world);
-    console.log(`[Game] Character selected: ${charInfo.name} (${charInfo.classType}) in zone ${player.currentZone} [${sessionId}]`);
   }
 
   private handleDeleteCharacter(sessionId: string, characterId: string): void {
@@ -437,6 +494,9 @@ export class MessageHandler {
 
     player.addToInventory(item.itemId, item.quantity);
     this.sendInventoryUpdate(sessionId, player);
+
+    // Track quest Collect objectives
+    this.questManager.onItemPickup(player, item.itemId);
   }
 
   private handleDropItem(sessionId: string, msg: DropItemMessage): void {
@@ -482,29 +542,18 @@ export class MessageHandler {
     const invItem = player.inventory.find(i => i.slot === msg.slot);
     if (!invItem) return;
 
-    const itemDef = ITEM_DATABASE[invItem.itemId];
-    if (!itemDef || !itemDef.useEffect) {
+    const validation = this.validateItemUsage(player, invItem);
+    if (!validation.valid) {
       this.network.sendToPlayer(sessionId, {
         type: ServerMessageType.Error,
-        message: 'This item cannot be used',
+        message: validation.reason || 'Cannot use item',
       });
       return;
     }
 
+    const itemDef = ITEM_DATABASE[invItem.itemId];
+    const effect = itemDef.useEffect!;
     const now = Date.now();
-    const effect = itemDef.useEffect;
-
-    // Check cooldowns for consumables
-    if (itemDef.type === 'consumable') {
-      const cooldownCheck = player.canUseConsumable(invItem.itemId, now);
-      if (!cooldownCheck.canUse) {
-        this.network.sendToPlayer(sessionId, {
-          type: ServerMessageType.Error,
-          message: cooldownCheck.reason || 'Item on cooldown',
-        });
-        return;
-      }
-    }
 
     // Apply effect based on type
     if (effect.type === 'heal') {
@@ -518,8 +567,37 @@ export class MessageHandler {
       player.setItemCooldown(invItem.itemId, now, BANDAGE_COOLDOWN_MS);
     }
 
+    this.sendItemUseConfirmation(player, invItem, effect);
+
+    // Consume one from stack
+    player.removeFromInventory(msg.slot, 1);
+    this.sendInventoryUpdate(sessionId, player);
+  }
+
+  private validateItemUsage(player: Player, invItem: any): { valid: boolean; reason?: string } {
+    const itemDef = ITEM_DATABASE[invItem.itemId];
+    if (!itemDef || !itemDef.useEffect) {
+      return { valid: false, reason: 'This item cannot be used' };
+    }
+
+    const now = Date.now();
+    
+    // Check cooldowns for consumables
+    if (itemDef.type === 'consumable') {
+      const cooldownCheck = player.canUseConsumable(invItem.itemId, now);
+      if (!cooldownCheck.canUse) {
+        return { valid: false, reason: cooldownCheck.reason || 'Item on cooldown' };
+      }
+    }
+
+    return { valid: true };
+  }
+
+  private sendItemUseConfirmation(player: Player, invItem: any, effect: any): void {
+    const now = Date.now();
+    
     // Send confirmation
-    this.network.sendToPlayer(sessionId, {
+    this.network.sendToPlayer(player.id, {
       type: ServerMessageType.ConsumableUsed,
       playerId: player.id,
       itemId: invItem.itemId,
@@ -528,14 +606,10 @@ export class MessageHandler {
     });
 
     // Send cooldown update
-    this.network.sendToPlayer(sessionId, {
+    this.network.sendToPlayer(player.id, {
       type: ServerMessageType.PotionCooldownUpdate,
       cooldownState: player.getPotionCooldownState(now),
     });
-
-    // Consume one from stack
-    player.removeFromInventory(msg.slot, 1);
-    this.sendInventoryUpdate(sessionId, player);
   }
 
   private handleEquipItem(sessionId: string, msg: EquipItemMessage): void {
@@ -625,10 +699,14 @@ export class MessageHandler {
         this.db.saveCharacter(player.toCharacterSaveData());
         this.db.saveInventory(player.characterId, player.inventory);
         this.db.saveEquipment(player.characterId, player.equipment);
+        const quests = this.questManager.getPlayerQuests(player.id);
+        this.db.saveQuestProgress(player.characterId, quests);
       } catch (error) {
         console.error(`[Game] Failed to save player ${player.name} on disconnect:`, error);
       }
     }
+
+    this.questManager.removePlayer(sessionId);
 
     const removed = this.world.removePlayer(sessionId);
     if (removed) {
@@ -658,6 +736,8 @@ export class MessageHandler {
           this.db.saveCharacter(player.toCharacterSaveData());
           this.db.saveInventory(player.characterId, player.inventory);
           this.db.saveEquipment(player.characterId, player.equipment);
+          const quests = this.questManager.getPlayerQuests(player.id);
+          this.db.saveQuestProgress(player.characterId, quests);
         } catch (error) {
           console.error(`[Game] Failed to save player ${player.name}:`, error);
         }
@@ -708,27 +788,13 @@ export class MessageHandler {
     }
 
     // Notify old zone that player left
-    const oldZonePlayers = this.world.zoneManager.getPlayersInZone(oldZone);
-    for (const otherPlayer of oldZonePlayers) {
-      if (otherPlayer.id !== player.id) {
-        this.network.sendToPlayer(otherPlayer.id, {
-          type: ServerMessageType.PlayerLeft,
-          playerId: player.id,
-        });
-      }
-    }
+    this.notifyZonePlayersPlayerLeft(oldZone, player.id);
 
     // Change zone
     this.world.changePlayerZone(player, newZone, newPosition);
 
     // Persist zone change to DB immediately
-    try {
-      if (player.characterId) {
-        this.db.saveCharacter(player.toCharacterSaveData());
-      }
-    } catch (error) {
-      console.error(`[Portal] Failed to persist zone change for ${player.name}:`, error);
-    }
+    this.persistZoneChange(player);
 
     // Send zone changed message to player
     this.network.sendToPlayer(sessionId, {
@@ -740,8 +806,32 @@ export class MessageHandler {
     });
 
     // Notify new zone that player joined
-    const newZonePlayers = this.world.zoneManager.getPlayersInZone(newZone);
-    for (const otherPlayer of newZonePlayers) {
+    this.notifyZonePlayersPlayerJoined(newZone, player);
+
+    console.log(`[Portal] ${player.name} traveled from ${oldZone} to ${newZone}`);
+
+    // Send NPC list for new zone
+    this.sendNpcList(sessionId, player);
+
+    // Trigger Visit quest objectives for new zone
+    this.questManager.onZoneEnter(player, newZone);
+  }
+
+  private notifyZonePlayersPlayerLeft(zoneId: ZoneId, playerId: string): void {
+    const zonePlayers = this.world.zoneManager.getPlayersInZone(zoneId);
+    for (const otherPlayer of zonePlayers) {
+      if (otherPlayer.id !== playerId) {
+        this.network.sendToPlayer(otherPlayer.id, {
+          type: ServerMessageType.PlayerLeft,
+          playerId,
+        });
+      }
+    }
+  }
+
+  private notifyZonePlayersPlayerJoined(zoneId: ZoneId, player: Player): void {
+    const zonePlayers = this.world.zoneManager.getPlayersInZone(zoneId);
+    for (const otherPlayer of zonePlayers) {
       if (otherPlayer.id !== player.id) {
         this.network.sendToPlayer(otherPlayer.id, {
           type: ServerMessageType.PlayerJoined,
@@ -749,7 +839,137 @@ export class MessageHandler {
         });
       }
     }
+  }
 
-    console.log(`[Portal] ${player.name} traveled from ${oldZone} to ${newZone}`);
+  private persistZoneChange(player: Player): void {
+    try {
+      if (player.characterId) {
+        this.db.saveCharacter(player.toCharacterSaveData());
+      }
+    } catch (error) {
+      console.error(`[Portal] Failed to persist zone change for ${player.name}:`, error);
+    }
+  }
+
+  // ── NPC & Quest handlers ─────────────────────────────────
+
+  private handleInteractNPC(sessionId: string, msg: InteractNPCMessage): void {
+    const player = this.world.getPlayer(sessionId);
+    if (!player || player.isDead) return;
+
+    const npc = this.npcs.get(msg.npcId);
+    if (!npc) return;
+
+    // Verify NPC is in the same zone
+    if (npc.zone !== player.currentZone) return;
+
+    // Range check
+    const dist = distance(player.position, npc.position);
+    if (dist > NPC_INTERACTION_RANGE) {
+      this.network.sendToPlayer(sessionId, {
+        type: ServerMessageType.Error,
+        message: 'Too far away from NPC',
+      });
+      return;
+    }
+
+    const playerQuests = this.questManager.getPlayerQuests(player.id);
+    const availableQuests = npc.getAvailableQuests(player, playerQuests);
+
+    // Build active quests for this NPC
+    const activeQuests: Array<{ questId: QuestId; objectives: QuestObjective[] }> = [];
+    const completableQuests: QuestId[] = [];
+
+    for (const questId of npc.def.questIds) {
+      const entry = playerQuests.get(questId);
+      if (!entry) continue;
+
+      if (entry.state === QuestState.Active) {
+        activeQuests.push({ questId, objectives: entry.objectives });
+      } else if (entry.state === QuestState.Complete) {
+        completableQuests.push(questId);
+      }
+    }
+
+    // Choose appropriate dialogue
+    let dialogue = npc.def.dialogue.greeting;
+    if (completableQuests.length > 0) {
+      dialogue = npc.def.dialogue.questComplete;
+    } else if (activeQuests.length > 0) {
+      dialogue = npc.def.dialogue.questInProgress;
+    } else if (availableQuests.length > 0) {
+      dialogue = npc.def.dialogue.questAvailable;
+    }
+
+    this.network.sendToPlayer(sessionId, {
+      type: ServerMessageType.NPCDialogue,
+      npcId: npc.id,
+      dialogue,
+      availableQuests,
+      activeQuests,
+      completableQuests,
+    });
+  }
+
+  private handleAcceptQuest(sessionId: string, msg: AcceptQuestMessage): void {
+    const player = this.world.getPlayer(sessionId);
+    if (!player || player.isDead) return;
+
+    const success = this.questManager.acceptQuest(player, msg.questId);
+    if (!success) {
+      this.network.sendToPlayer(sessionId, {
+        type: ServerMessageType.Error,
+        message: 'Cannot accept this quest',
+      });
+    }
+  }
+
+  private handleAbandonQuest(sessionId: string, msg: AbandonQuestMessage): void {
+    const player = this.world.getPlayer(sessionId);
+    if (!player) return;
+
+    const success = this.questManager.abandonQuest(player, msg.questId);
+    if (!success) {
+      this.network.sendToPlayer(sessionId, {
+        type: ServerMessageType.Error,
+        message: 'Cannot abandon this quest',
+      });
+    }
+  }
+
+  private handleTurnInQuest(sessionId: string, msg: TurnInQuestMessage): void {
+    const player = this.world.getPlayer(sessionId);
+    if (!player || player.isDead) return;
+
+    const success = this.questManager.turnInQuest(player, msg.questId);
+    if (!success) {
+      this.network.sendToPlayer(sessionId, {
+        type: ServerMessageType.Error,
+        message: 'Cannot turn in this quest',
+      });
+    }
+  }
+
+  private sendNpcList(sessionId: string, player: Player): void {
+    const npcList = this.questManager.getNpcListForZone(player, player.currentZone);
+    this.network.sendToPlayer(sessionId, {
+      type: ServerMessageType.NPCList,
+      npcs: npcList,
+    });
+  }
+
+  /** Hook for CombatSystem to call when a mob is killed */
+  onMobKill(player: Player, mobType: string): void {
+    this.questManager.onMobKill(player, mobType);
+  }
+
+  /** Hook for item pickup quest tracking */
+  onItemPickup(player: Player, itemId: string): void {
+    this.questManager.onItemPickup(player, itemId);
+  }
+
+  /** Access the QuestManager (for CombatSystem integration) */
+  getQuestManager(): QuestManager {
+    return this.questManager;
   }
 }

@@ -257,6 +257,7 @@ export interface CharacterInfo {
   createdAt: number;
   lastPlayed: number;
   currentZone?: ZoneId;
+  gold?: number;
 }
 
 // ============================================================
@@ -345,6 +346,89 @@ export interface PotionCooldownState {
 // ============================================================
 // Equipment System
 // ============================================================
+
+// ============================================================
+// NPC & Quest System
+// ============================================================
+
+export enum NpcId {
+  GuardCaptain = 'guard-captain',
+  Merchant = 'merchant',
+  Ranger = 'ranger',
+  Hermit = 'hermit',
+  Adventurer = 'adventurer',
+  Priest = 'priest',
+}
+
+export enum QuestId {
+  // Starter Plains (level 1-3)
+  SlayGoblins = 'slay-goblins',
+  CollectWolfPelts = 'collect-wolf-pelts',
+  HelpTheGuard = 'help-the-guard',
+  VisitTheMerchant = 'visit-the-merchant',
+  // Dark Forest (level 3-6)
+  HuntWolves = 'hunt-wolves',
+  ClearSpiders = 'clear-spiders',
+  CollectSkeletonBones = 'collect-skeleton-bones',
+  ExploreForestDepths = 'explore-forest-depths',
+  BanditThreat = 'bandit-threat',
+  // Ancient Dungeon (level 5-10)
+  ClearSkeletonMages = 'clear-skeleton-mages',
+  DefeatBoneLord = 'defeat-bone-lord',
+  CollectRareDrops = 'collect-rare-drops',
+  DungeonExplorer = 'dungeon-explorer',
+}
+
+export enum QuestObjectiveType {
+  Defeat = 'defeat',
+  Collect = 'collect',
+  Visit = 'visit',
+}
+
+export enum QuestState {
+  Available = 'available',
+  Active = 'active',
+  Complete = 'complete',
+  TurnedIn = 'turned_in',
+}
+
+export interface QuestObjective {
+  type: QuestObjectiveType;
+  target: string;
+  required: number;
+  current: number;
+}
+
+export interface QuestReward {
+  xp: number;
+  gold: number;
+  items?: Array<{ itemId: string; quantity: number }>;
+}
+
+export interface QuestDef {
+  id: QuestId;
+  name: string;
+  description: string;
+  npcId: NpcId;
+  objectives: QuestObjective[];
+  rewards: QuestReward;
+  requiredLevel: number;
+  prerequisiteQuest?: QuestId;
+}
+
+export interface NpcDef {
+  id: NpcId;
+  name: string;
+  zone: ZoneId;
+  position: Vec2;
+  dialogue: {
+    greeting: string;
+    questAvailable: string;
+    questInProgress: string;
+    questComplete: string;
+  };
+  questIds: QuestId[];
+}
 
 export enum EquipmentSlot {
   Weapon = 'weapon',
