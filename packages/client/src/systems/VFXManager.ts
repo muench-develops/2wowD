@@ -587,4 +587,214 @@ export class VFXManager {
       },
     });
   }
+
+  // ====================================================================
+  // Consumable VFX Constants
+  // ====================================================================
+
+  private static readonly HEAL_PARTICLE_COLOR = 0x44ff88;
+  private static readonly HEAL_PARTICLE_ALPHA = 0.9;
+  private static readonly HEAL_PARTICLE_COUNT = 8;
+  private static readonly HEAL_PARTICLE_SPREAD = 18;
+  private static readonly HEAL_PARTICLE_MIN_SIZE = 2;
+  private static readonly HEAL_PARTICLE_SIZE_VARIANCE = 2;
+  private static readonly HEAL_MAX_DELAY_MS = 150;
+  private static readonly HEAL_RISE_DISTANCE = 25;
+  private static readonly HEAL_RISE_VARIANCE = 15;
+  private static readonly HEAL_DURATION_MS = 500;
+  private static readonly HEAL_DURATION_VARIANCE_MS = 200;
+
+  private static readonly MANA_PARTICLE_COLOR = 0x4488ff;
+  private static readonly MANA_PARTICLE_ALPHA = 0.9;
+  private static readonly MANA_SPIRAL_COUNT = 10;
+  private static readonly MANA_PARTICLE_SIZE = 2;
+  private static readonly MANA_STAGGER_DELAY_MS = 30;
+  private static readonly MANA_START_RADIUS = 8;
+  private static readonly MANA_END_RADIUS = 20;
+  private static readonly MANA_RISE_OFFSET = 15;
+  private static readonly MANA_DURATION_MS = 400;
+
+  private static readonly TELEPORT_SWIRL_COLOR = 0xaa44ff;
+  private static readonly TELEPORT_SWIRL_LINE_WIDTH = 3;
+  private static readonly TELEPORT_SWIRL_SEGMENTS = 6;
+  private static readonly TELEPORT_SWIRL_ARC_LENGTH = 0.8;
+  private static readonly TELEPORT_START_RADIUS = 2;
+  private static readonly TELEPORT_END_RADIUS = 30;
+  private static readonly TELEPORT_ROTATION_TOTAL = Math.PI * 3;
+  private static readonly TELEPORT_SWIRL_DURATION_MS = 600;
+  private static readonly TELEPORT_PARTICLE_COUNT = 12;
+  private static readonly TELEPORT_PARTICLE_COLOR = 0xcc88ff;
+  private static readonly TELEPORT_PARTICLE_MIN_RADIUS = 5;
+  private static readonly TELEPORT_PARTICLE_RADIUS_VARIANCE = 20;
+  private static readonly TELEPORT_PARTICLE_SIZE = 3;
+  private static readonly TELEPORT_PARTICLE_LIFE_MS = 400;
+  private static readonly TELEPORT_PARTICLE_MAX_DELAY_MS = 300;
+
+  private static readonly BANDAGE_CROSS_COLOR = 0xffcccc;
+  private static readonly BANDAGE_CROSS_LINE_WIDTH = 3;
+  private static readonly BANDAGE_CROSS_SIZE = 8;
+  private static readonly BANDAGE_PULSE_SCALE = 1.5;
+  private static readonly BANDAGE_PULSE_DURATION_MS = 500;
+  private static readonly BANDAGE_PARTICLE_COUNT = 6;
+  private static readonly BANDAGE_PARTICLE_SPREAD = 15;
+  private static readonly BANDAGE_PARTICLE_COLOR = 0xffeecc;
+  private static readonly BANDAGE_PARTICLE_SIZE = 2;
+  private static readonly BANDAGE_PARTICLE_LIFE_MS = 300;
+  private static readonly BANDAGE_PARTICLE_STAGGER_MS = 50;
+
+  // ====================================================================
+  // Consumable Effects
+  // ====================================================================
+
+  /** Play visual effect for consumable use */
+  playConsumableEffect(effectType: 'heal' | 'mana' | 'teleport' | 'buff', x: number, y: number): void {
+    switch (effectType) {
+      case 'heal':
+        this.playHealEffect(x, y);
+        break;
+      case 'mana':
+        this.playManaEffect(x, y);
+        break;
+      case 'teleport':
+        this.playTeleportEffect(x, y);
+        break;
+      case 'buff':
+        this.playBandageEffect(x, y);
+        break;
+    }
+  }
+
+  /** Health potion: green upward particles */
+  private playHealEffect(x: number, y: number): void {
+    for (let i = 0; i < VFXManager.HEAL_PARTICLE_COUNT; i++) {
+      const offsetX = (Math.random() - 0.5) * VFXManager.HEAL_PARTICLE_SPREAD;
+      const delay = Math.random() * VFXManager.HEAL_MAX_DELAY_MS;
+      
+      this.scene.time.delayedCall(delay, () => {
+        const graphics = this.scene.add.graphics();
+        graphics.setDepth(VFX_DEPTH);
+        graphics.fillStyle(VFXManager.HEAL_PARTICLE_COLOR, VFXManager.HEAL_PARTICLE_ALPHA);
+        graphics.fillCircle(0, 0, VFXManager.HEAL_PARTICLE_MIN_SIZE + Math.random() * VFXManager.HEAL_PARTICLE_SIZE_VARIANCE);
+        graphics.setPosition(x + offsetX, y);
+
+        this.scene.tweens.add({
+          targets: graphics,
+          y: y - VFXManager.HEAL_RISE_DISTANCE - Math.random() * VFXManager.HEAL_RISE_VARIANCE,
+          alpha: 0,
+          duration: VFXManager.HEAL_DURATION_MS + Math.random() * VFXManager.HEAL_DURATION_VARIANCE_MS,
+          ease: 'Cubic.easeOut',
+          onComplete: () => graphics.destroy(),
+        });
+      });
+    }
+  }
+
+  /** Mana potion: blue spiral particles */
+  private playManaEffect(x: number, y: number): void {
+    for (let i = 0; i < VFXManager.MANA_SPIRAL_COUNT; i++) {
+      const angle = (i / VFXManager.MANA_SPIRAL_COUNT) * Math.PI * 2;
+      const delay = i * VFXManager.MANA_STAGGER_DELAY_MS;
+      
+      this.scene.time.delayedCall(delay, () => {
+        const graphics = this.scene.add.graphics();
+        graphics.setDepth(VFX_DEPTH);
+        graphics.fillStyle(VFXManager.MANA_PARTICLE_COLOR, VFXManager.MANA_PARTICLE_ALPHA);
+        graphics.fillCircle(0, 0, VFXManager.MANA_PARTICLE_SIZE);
+        
+        const startX = x + Math.cos(angle) * VFXManager.MANA_START_RADIUS;
+        const startY = y + Math.sin(angle) * VFXManager.MANA_START_RADIUS;
+        const endX = x + Math.cos(angle + Math.PI) * VFXManager.MANA_END_RADIUS;
+        const endY = y + Math.sin(angle + Math.PI) * VFXManager.MANA_END_RADIUS - VFXManager.MANA_RISE_OFFSET;
+        
+        graphics.setPosition(startX, startY);
+
+        this.scene.tweens.add({
+          targets: graphics,
+          x: endX,
+          y: endY,
+          alpha: 0,
+          duration: VFXManager.MANA_DURATION_MS,
+          ease: 'Cubic.easeOut',
+          onComplete: () => graphics.destroy(),
+        });
+      });
+    }
+  }
+
+  /** Teleport scroll: swirl/portal effect */
+  private playTeleportEffect(x: number, y: number): void {
+    const graphics = this.scene.add.graphics();
+    graphics.setDepth(VFX_DEPTH);
+
+    const state = { radius: VFXManager.TELEPORT_START_RADIUS, alpha: 1, rotation: 0 };
+    this.scene.tweens.add({
+      targets: state,
+      radius: VFXManager.TELEPORT_END_RADIUS,
+      rotation: VFXManager.TELEPORT_ROTATION_TOTAL,
+      alpha: 0,
+      duration: VFXManager.TELEPORT_SWIRL_DURATION_MS,
+      ease: 'Cubic.easeOut',
+      onUpdate: () => {
+        graphics.clear();
+        for (let i = 0; i < VFXManager.TELEPORT_SWIRL_SEGMENTS; i++) {
+          const segmentAngle = state.rotation + (i * Math.PI * 2) / VFXManager.TELEPORT_SWIRL_SEGMENTS;
+          graphics.lineStyle(VFXManager.TELEPORT_SWIRL_LINE_WIDTH, VFXManager.TELEPORT_SWIRL_COLOR, state.alpha);
+          graphics.beginPath();
+          graphics.arc(x, y, state.radius, segmentAngle, segmentAngle + VFXManager.TELEPORT_SWIRL_ARC_LENGTH, false);
+          graphics.strokePath();
+        }
+      },
+      onComplete: () => graphics.destroy(),
+    });
+
+    // Particles
+    for (let i = 0; i < VFXManager.TELEPORT_PARTICLE_COUNT; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = VFXManager.TELEPORT_PARTICLE_MIN_RADIUS + Math.random() * VFXManager.TELEPORT_PARTICLE_RADIUS_VARIANCE;
+      const particleX = x + Math.cos(angle) * radius;
+      const particleY = y + Math.sin(angle) * radius;
+      this.scene.time.delayedCall(Math.random() * VFXManager.TELEPORT_PARTICLE_MAX_DELAY_MS, () => {
+        this.spawnParticle(particleX, particleY, VFXManager.TELEPORT_PARTICLE_COLOR, VFXManager.TELEPORT_PARTICLE_SIZE, VFXManager.TELEPORT_PARTICLE_LIFE_MS);
+      });
+    }
+  }
+
+  /** Bandage: wrapping/healing icon effect */
+  private playBandageEffect(x: number, y: number): void {
+    const graphics = this.scene.add.graphics();
+    graphics.setDepth(VFX_DEPTH);
+    
+    // Draw a simple cross/plus sign
+    graphics.lineStyle(VFXManager.BANDAGE_CROSS_LINE_WIDTH, VFXManager.BANDAGE_CROSS_COLOR, 1);
+    graphics.beginPath();
+    graphics.moveTo(x - VFXManager.BANDAGE_CROSS_SIZE, y);
+    graphics.lineTo(x + VFXManager.BANDAGE_CROSS_SIZE, y);
+    graphics.moveTo(x, y - VFXManager.BANDAGE_CROSS_SIZE);
+    graphics.lineTo(x, y + VFXManager.BANDAGE_CROSS_SIZE);
+    graphics.strokePath();
+
+    // Pulsing effect
+    const state = { scale: 1, alpha: 1 };
+    this.scene.tweens.add({
+      targets: state,
+      scale: VFXManager.BANDAGE_PULSE_SCALE,
+      alpha: 0,
+      duration: VFXManager.BANDAGE_PULSE_DURATION_MS,
+      ease: 'Cubic.easeOut',
+      onUpdate: () => {
+        graphics.setAlpha(state.alpha);
+        graphics.setScale(state.scale);
+      },
+      onComplete: () => graphics.destroy(),
+    });
+
+    // Light particles
+    for (let i = 0; i < VFXManager.BANDAGE_PARTICLE_COUNT; i++) {
+      const offsetX = (Math.random() - 0.5) * VFXManager.BANDAGE_PARTICLE_SPREAD;
+      const offsetY = (Math.random() - 0.5) * VFXManager.BANDAGE_PARTICLE_SPREAD;
+      this.scene.time.delayedCall(i * VFXManager.BANDAGE_PARTICLE_STAGGER_MS, () => {
+        this.spawnParticle(x + offsetX, y + offsetY, VFXManager.BANDAGE_PARTICLE_COLOR, VFXManager.BANDAGE_PARTICLE_SIZE, VFXManager.BANDAGE_PARTICLE_LIFE_MS);
+      });
+    }
+  }
 }

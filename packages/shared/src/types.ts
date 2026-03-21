@@ -112,6 +112,7 @@ export interface PlayerState extends Entity {
   targetId: string | null;
   buffs: BuffState[];
   currentZone: ZoneId;
+  equipment?: PlayerEquipment;
 }
 
 export enum MobType {
@@ -330,4 +331,37 @@ export interface WorldLoot {
   killerId: string;
   killerOnlyUntil: number;
   expiresAt: number;
+}
+
+// ============================================================
+// Consumables & Cooldowns
+// ============================================================
+
+export interface PotionCooldownState {
+  sharedCooldownMs: number;
+  itemCooldowns: Record<string, number>;
+}
+
+// ============================================================
+// Equipment System
+// ============================================================
+
+export enum EquipmentSlot {
+  Weapon = 'weapon',
+  Head = 'head',
+  Chest = 'chest',
+  Legs = 'legs',
+  Boots = 'boots',
+  Ring1 = 'ring1',
+  Ring2 = 'ring2',
+}
+
+export interface PlayerEquipment {
+  [EquipmentSlot.Weapon]?: string;
+  [EquipmentSlot.Head]?: string;
+  [EquipmentSlot.Chest]?: string;
+  [EquipmentSlot.Legs]?: string;
+  [EquipmentSlot.Boots]?: string;
+  [EquipmentSlot.Ring1]?: string;
+  [EquipmentSlot.Ring2]?: string;
 }

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { type AbilityDef, type CooldownState, type ChatMessage, type MapData, type BuffState, type InventoryItem, type WorldLoot } from '@isoheim/shared';
+import { type AbilityDef, type CooldownState, type ChatMessage, type MapData, type BuffState, type InventoryItem, type WorldLoot, type PlayerEquipment } from '@isoheim/shared';
 import { HealthBar } from '../ui/HealthBar';
 import { ActionBar } from '../ui/ActionBar';
 import { ChatPanel } from '../ui/ChatPanel';
@@ -239,6 +239,12 @@ export class HUDScene extends Phaser.Scene {
     // Inventory data updates
     this.onGameScene('inventoryUpdated', (inventory: InventoryItem[]) => {
       this.inventoryPanel.updateInventory(inventory);
+    });
+
+    // Equipment updates — forward to both panels
+    this.onGameScene('equipmentUpdate', (equipment: PlayerEquipment) => {
+      this.characterPanel.updateEquipment(equipment);
+      this.inventoryPanel.updateEquipment(equipment);
     });
 
     // Character panel toggle

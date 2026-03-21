@@ -1,4 +1,4 @@
-import { Vec2, Direction } from './types.js';
+import { Vec2, Direction, EquipmentSlot } from './types.js';
 import { ISO_TILE_WIDTH, ISO_TILE_HEIGHT } from './constants.js';
 
 // ============================================================
@@ -73,4 +73,17 @@ Math.clamp01 = function (value: number): number {
 /** Generate a simple unique ID */
 export function generateId(): string {
   return Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+}
+
+/** Create a new equipment map with all 7 slots set to null */
+export function createDefaultEquipmentMap(): Map<EquipmentSlot, string | null> {
+  return new Map<EquipmentSlot, string | null>([
+    [EquipmentSlot.Weapon, null],
+    [EquipmentSlot.Head, null],
+    [EquipmentSlot.Chest, null],
+    [EquipmentSlot.Legs, null],
+    [EquipmentSlot.Boots, null],
+    [EquipmentSlot.Ring1, null],
+    [EquipmentSlot.Ring2, null],
+  ]);
 }

@@ -1,5 +1,5 @@
 import BetterSqlite3 from 'better-sqlite3';
-import { InventoryItem, generateId } from '@isoheim/shared';
+import { InventoryItem, generateId, EquipmentSlot, createDefaultEquipmentMap } from '@isoheim/shared';
 
 export interface CharacterRow {
   id: string;
@@ -67,6 +67,13 @@ export class Database {
         slot INTEGER NOT NULL,
         item_id TEXT NOT NULL,
         quantity INTEGER NOT NULL DEFAULT 1,
+        PRIMARY KEY (character_id, slot)
+      );
+
+      CREATE TABLE IF NOT EXISTS equipment (
+        character_id TEXT NOT NULL,
+        slot TEXT NOT NULL,
+        item_id TEXT NOT NULL,
         PRIMARY KEY (character_id, slot)
       );
     `);
@@ -202,6 +209,38 @@ export class Database {
       .prepare('SELECT item_id, quantity, slot FROM inventory WHERE character_id = ? ORDER BY slot')
       .all(characterId) as { item_id: string; quantity: number; slot: number }[];
     return rows.map(r => ({ itemId: r.item_id, quantity: r.quantity, slot: r.slot }));
+  }
+
+  // ── Equipment methods ─────────────────────────────────────
+
+  saveEquipment(characterId: string, equipment: Map<EquipmentSlot, string | null>): void {
+    const deleteAll = this.db.prepare('DELETE FROM equipment WHERE character_id = ?');
+    const insert = this.db.prepare(
+      'INSERT INTO equipment (character_id, slot, item_id) VALUES (?, ?, ?)',
+    );
+    const saveAll = this.db.transaction(() => {
+      deleteAll.run(characterId);
+      for (const [slot, itemId] of equipment) {
+        if (itemId) {
+          insert.run(characterId, slot, itemId);
+        }
+      }
+    });
+    saveAll();
+  }
+
+  loadEquipment(characterId: string): Map<EquipmentSlot, string | null> {
+    const rows = this.db
+      .prepare('SELECT slot, item_id FROM equipment WHERE character_id = ?')
+      .all(characterId) as { slot: string; item_id: string }[];
+    
+    const equipment = createDefaultEquipmentMap();
+
+    for (const row of rows) {
+      equipment.set(row.slot as EquipmentSlot, row.item_id);
+    }
+
+    return equipment;
   }
 
   close(): void {

@@ -1,13 +1,17 @@
 import Phaser from 'phaser';
 import {
   type InventoryItem,
+  type ItemStats,
+  type PlayerEquipment,
   ITEM_DATABASE,
   ItemType,
   INVENTORY_SIZE,
-  ServerMessageType,
   ClientMessageType,
+  EquipmentSlot,
+  EQUIPMENT_SLOT_FOR_ITEM_TYPE,
 } from '@isoheim/shared';
 import { NetworkManager } from '../network/NetworkManager';
+import { formatItemStats } from './formatItemStats';
 
 const COLS = 4;
 const ROWS = 5;
@@ -30,6 +34,18 @@ const RARITY_TEXT_COLORS: Record<string, string> = {
   epic: '#a335ee',
 };
 
+const STAT_DISPLAY_LABELS: Record<keyof ItemStats, string> = {
+  attack: 'Attack',
+  defense: 'Defense',
+  health: 'Health',
+  mana: 'Mana',
+  speed: 'Speed',
+  critChance: 'Crit',
+};
+
+const STAT_IMPROVE_COLOR = '#44cc44';
+const STAT_WORSE_COLOR = '#cc4444';
+
 export class InventoryPanel {
   private scene: Phaser.Scene;
   private container!: Phaser.GameObjects.Container;
@@ -40,6 +56,7 @@ export class InventoryPanel {
   private visible = false;
   private tooltip: Phaser.GameObjects.Container | null = null;
   private dragSlot: number = -1;
+  private currentEquipment: PlayerEquipment = {};
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -108,7 +125,7 @@ export class InventoryPanel {
           .on('pointerout', () => this.hideTooltip())
           .on('pointerdown', (pointer: Phaser.Input.Pointer) => {
             if (pointer.rightButtonDown()) {
-              this.useItem(slotIdx);
+              this.handleRightClick(slotIdx);
             } else {
               this.startDrag(slotIdx);
             }
@@ -122,6 +139,10 @@ export class InventoryPanel {
   updateInventory(inventory: InventoryItem[]): void {
     this.inventory = inventory;
     this.refresh();
+  }
+
+  updateEquipment(equipment: PlayerEquipment): void {
+    this.currentEquipment = equipment;
   }
 
   private refresh(): void {
@@ -175,30 +196,33 @@ export class InventoryPanel {
     this.hideTooltip();
 
     const rarityColor = RARITY_TEXT_COLORS[def.rarity] || '#ffffff';
+    const isEquippable = EQUIPMENT_SLOT_FOR_ITEM_TYPE[def.type] !== null;
 
     let text = `${def.icon} ${def.name}\n`;
     text += `${def.type} | ${def.rarity}\n`;
     if (def.description) text += `${def.description}\n`;
 
-    const stats = def.stats;
-    if (stats.attack) text += `+${stats.attack} Attack\n`;
-    if (stats.defense) text += `+${stats.defense} Defense\n`;
-    if (stats.health) text += `+${stats.health} Health\n`;
-    if (stats.mana) text += `+${stats.mana} Mana\n`;
-    if (stats.speed) text += `+${stats.speed} Speed\n`;
-    if (stats.critChance) text += `+${(stats.critChance * 100).toFixed(0)}% Crit\n`;
+    text += formatItemStats(def.stats);
 
     if (def.levelReq > 1) text += `Requires Level ${def.levelReq}\n`;
     if (def.classReq.length > 0 && def.classReq.length < 4) text += `${def.classReq.join(', ')} only\n`;
 
-    this.tooltip = this.scene.add.container(sx - 160, sy);
+    if (isEquippable) {
+      text += '\n';
+      text += this.buildComparisonText(def.type, def.stats);
+      text += '\nRight-click to equip';
+    } else if (def.type === ItemType.Consumable && def.useEffect) {
+      text += '\nRight-click to use';
+    }
+
+    this.tooltip = this.scene.add.container(sx - 200, sy);
 
     const tipBg = this.scene.add.graphics();
     const tipText = this.scene.add.text(8, 8, text.trim(), {
       fontSize: '11px',
       fontFamily: 'monospace',
       color: rarityColor,
-      wordWrap: { width: 180 },
+      wordWrap: { width: 220 },
     });
 
     const bounds = tipText.getBounds();
@@ -212,6 +236,42 @@ export class InventoryPanel {
     this.container.add(this.tooltip);
   }
 
+  private buildComparisonText(itemType: ItemType, newStats: ItemStats): string {
+    const targetSlot = EQUIPMENT_SLOT_FOR_ITEM_TYPE[itemType];
+    if (!targetSlot) return '';
+
+    const equippedSlot = this.resolveEquipSlot(itemType);
+    const equippedItemId = this.currentEquipment[equippedSlot];
+    const equippedDef = equippedItemId ? ITEM_DATABASE[equippedItemId] : null;
+    const equippedStats = equippedDef?.stats || {};
+
+    const equippedLabel = equippedDef ? equippedDef.name : 'Empty';
+    let comparison = `vs ${equippedLabel}:\n`;
+
+    const allStatKeys = new Set<keyof ItemStats>([
+      ...Object.keys(newStats) as Array<keyof ItemStats>,
+      ...Object.keys(equippedStats) as Array<keyof ItemStats>,
+    ]);
+
+    for (const key of allStatKeys) {
+      const newVal = newStats[key] || 0;
+      const oldVal = equippedStats[key] || 0;
+      const diff = newVal - oldVal;
+      if (diff === 0) continue;
+
+      const label = STAT_DISPLAY_LABELS[key] || key;
+      const prefix = diff > 0 ? '+' : '';
+      const formatted = key === 'critChance' ? `${(diff * 100).toFixed(0)}%` : `${diff}`;
+      comparison += `  ${prefix}${formatted} ${label}\n`;
+    }
+
+    if (comparison.split('\n').length <= 2) {
+      comparison += '  No stat change\n';
+    }
+
+    return comparison;
+  }
+
   private hideTooltip(): void {
     if (this.tooltip) {
       this.tooltip.destroy();
@@ -219,19 +279,50 @@ export class InventoryPanel {
     }
   }
 
-  private useItem(slotIdx: number): void {
+  private handleRightClick(slotIdx: number): void {
     const item = this.inventory.find(i => i.slot === slotIdx);
     if (!item) return;
 
     const def = ITEM_DATABASE[item.itemId];
     if (!def) return;
 
-    if (def.type === ItemType.Consumable && def.useEffect) {
-      NetworkManager.instance.send({
-        type: ClientMessageType.UseItem,
-        slot: slotIdx,
-      });
+    const targetEquipSlot = EQUIPMENT_SLOT_FOR_ITEM_TYPE[def.type];
+    if (targetEquipSlot !== null) {
+      this.equipItem(slotIdx, def.type);
+    } else if (def.type === ItemType.Consumable && def.useEffect) {
+      this.useItem(slotIdx);
     }
+  }
+
+  private equipItem(slotIdx: number, itemType: ItemType): void {
+    const equipSlot = this.resolveEquipSlot(itemType);
+
+    NetworkManager.instance.send({
+      type: ClientMessageType.EquipItem,
+      slot: slotIdx,
+      equipSlot,
+    });
+  }
+
+  private resolveEquipSlot(itemType: ItemType): EquipmentSlot {
+    const baseSlot = EQUIPMENT_SLOT_FOR_ITEM_TYPE[itemType];
+    if (!baseSlot) return EquipmentSlot.Weapon;
+
+    // For rings: if Ring1 is occupied, use Ring2
+    if (baseSlot === EquipmentSlot.Ring1 && this.currentEquipment[EquipmentSlot.Ring1]) {
+      if (!this.currentEquipment[EquipmentSlot.Ring2]) {
+        return EquipmentSlot.Ring2;
+      }
+    }
+
+    return baseSlot;
+  }
+
+  private useItem(slotIdx: number): void {
+    NetworkManager.instance.send({
+      type: ClientMessageType.UseItem,
+      slot: slotIdx,
+    });
   }
 
   private startDrag(slotIdx: number): void {

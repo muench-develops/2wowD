@@ -1,4 +1,4 @@
-import { ClassStats, ClassType, AbilityDef, BuffDef, MobType, ItemDef, ItemType, ItemRarity, ZoneId, ZoneMetadata, Portal, Vec2 } from './types.js';
+import { ClassStats, ClassType, AbilityDef, BuffDef, MobType, ItemDef, ItemType, ItemRarity, ZoneId, ZoneMetadata, Portal, Vec2, EquipmentSlot } from './types.js';
 
 // ============================================================
 // Game Constants
@@ -27,6 +27,13 @@ export const LEASH_RANGE = 15;
 export const MOB_PATROL_RANGE = 3;
 export const HEALTH_REGEN_RATE = 0.02; // % of max per tick (out of combat)
 export const MANA_REGEN_RATE = 0.03; // % of max per tick
+
+// Consumables & Potions
+export const POTION_SHARED_COOLDOWN_MS = 15000; // 15s shared potion cooldown
+export const BANDAGE_COOLDOWN_MS = 30000; // 30s bandage cooldown
+export const TP_SCROLL_COOLDOWN_MS = 60000; // 60s teleport scroll cooldown
+export const BANDAGE_HOT_DURATION_MS = 8000; // 8s heal over time
+export const BANDAGE_HOT_TOTAL_PERCENT = 50; // 50% max HP total
 
 // Chat
 export const SAY_RANGE = 10;
@@ -1051,7 +1058,7 @@ export const ITEM_DATABASE: Record<string, ItemDef> = {
     levelReq: 1,
     classReq: allClasses,
     stats: {},
-    useEffect: { type: 'heal', value: 0.3 },
+    useEffect: { type: 'heal', value: 30 },
     sellValue: 2,
     icon: '🧪',
   },
@@ -1066,7 +1073,7 @@ export const ITEM_DATABASE: Record<string, ItemDef> = {
     levelReq: 1,
     classReq: allClasses,
     stats: {},
-    useEffect: { type: 'mana', value: 0.4 },
+    useEffect: { type: 'mana', value: 40 },
     sellValue: 2,
     icon: '🧪',
   },
@@ -1103,7 +1110,7 @@ export const ITEM_DATABASE: Record<string, ItemDef> = {
   bandage: {
     id: 'bandage',
     name: 'Bandage',
-    description: 'A cloth bandage that slowly heals wounds.',
+    description: 'A cloth bandage that slowly heals wounds over 8s. Interrupted by damage.',
     type: ItemType.Consumable,
     rarity: ItemRarity.Common,
     stackable: true,
@@ -1111,9 +1118,24 @@ export const ITEM_DATABASE: Record<string, ItemDef> = {
     levelReq: 1,
     classReq: allClasses,
     stats: {},
-    useEffect: { type: 'heal', value: 0.5, duration: 8000 },
+    useEffect: { type: 'buff', value: 50, duration: 8000 },
     sellValue: 1,
     icon: '🩹',
+  },
+  scroll_of_town_portal: {
+    id: 'scroll_of_town_portal',
+    name: 'Scroll of Town Portal',
+    description: 'Teleports you to the current zone\'s spawn point.',
+    type: ItemType.Consumable,
+    rarity: ItemRarity.Uncommon,
+    stackable: true,
+    maxStack: 5,
+    levelReq: 1,
+    classReq: allClasses,
+    stats: {},
+    useEffect: { type: 'teleport', value: 0 },
+    sellValue: 10,
+    icon: '📜',
   },
 
   // ── Quest Items ──────────────────────────────────────────────
@@ -1277,4 +1299,20 @@ export const MOB_LOOT_TABLES: Record<string, LootTableEntry[]> = {
     { itemId: 'minor_mana_potion', weight: 12, minQty: 1, maxQty: 1 },
     { itemId: 'health_potion', weight: 5, minQty: 1, maxQty: 1 },
   ],
+};
+
+// ============================================================
+// Equipment Slot Mapping
+// ============================================================
+
+export const EQUIPMENT_SLOT_FOR_ITEM_TYPE: Record<ItemType, EquipmentSlot | null> = {
+  [ItemType.Weapon]: EquipmentSlot.Weapon,
+  [ItemType.ArmorHead]: EquipmentSlot.Head,
+  [ItemType.ArmorChest]: EquipmentSlot.Chest,
+  [ItemType.ArmorLegs]: EquipmentSlot.Legs,
+  [ItemType.ArmorBoots]: EquipmentSlot.Boots,
+  [ItemType.Ring]: EquipmentSlot.Ring1, // default to Ring1, server logic handles Ring2
+  [ItemType.Consumable]: null,
+  [ItemType.QuestItem]: null,
+  [ItemType.Misc]: null,
 };

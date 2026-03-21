@@ -31,6 +31,10 @@ export {
   type InventoryItem,
   type LootItem,
   type WorldLoot,
+  type PotionCooldownState,
+  // Equipment
+  EquipmentSlot,
+  type PlayerEquipment,
   // Zones
   ZoneId,
   type ZoneMetadata,
@@ -56,6 +60,11 @@ export {
   MOB_PATROL_RANGE,
   HEALTH_REGEN_RATE,
   MANA_REGEN_RATE,
+  POTION_SHARED_COOLDOWN_MS,
+  BANDAGE_COOLDOWN_MS,
+  TP_SCROLL_COOLDOWN_MS,
+  BANDAGE_HOT_DURATION_MS,
+  BANDAGE_HOT_TOTAL_PERCENT,
   SAY_RANGE,
   MAX_CHAT_LENGTH,
   CHAT_RATE_LIMIT,
@@ -98,6 +107,7 @@ export {
   ITEM_DATABASE,
   type LootTableEntry,
   MOB_LOOT_TABLES,
+  EQUIPMENT_SLOT_FOR_ITEM_TYPE,
   // Zones
   ZONE_METADATA,
   ZONE_PLAYER_SPAWNS,
@@ -162,6 +172,12 @@ export {
   type LootSpawnedMessage,
   type LootDespawnedMessage,
   type LootPickedUpMessage,
+  type ConsumableUsedMessage,
+  type PotionCooldownUpdateMessage,
+  // Equipment
+  type EquipItemMessage,
+  type UnequipItemMessage,
+  type EquipmentUpdateMessage,
 } from './protocol.js';
 
 // Utils
@@ -173,4 +189,5 @@ export {
   vectorToDirection,
   lerp,
   generateId,
+  createDefaultEquipmentMap,
 } from './utils.js';

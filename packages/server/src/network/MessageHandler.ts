@@ -8,10 +8,19 @@ import {
   DropItemMessage,
   MoveItemMessage,
   UseItemMessage,
+  EquipItemMessage,
+  UnequipItemMessage,
   ZoneId,
   ITEM_DATABASE,
   LOOT_PICKUP_RANGE,
   PORTAL_USE_RANGE,
+  POTION_SHARED_COOLDOWN_MS,
+  BANDAGE_COOLDOWN_MS,
+  TP_SCROLL_COOLDOWN_MS,
+  BANDAGE_HOT_DURATION_MS,
+  BANDAGE_HOT_TOTAL_PERCENT,
+  TICK_INTERVAL,
+  ZONE_PLAYER_SPAWNS,
   distance,
   generateId,
   WorldLoot,
@@ -153,6 +162,14 @@ export class MessageHandler {
         this.handleUseItem(sessionId, message as UseItemMessage);
         break;
 
+      case ClientMessageType.EquipItem:
+        this.handleEquipItem(sessionId, message as EquipItemMessage);
+        break;
+
+      case ClientMessageType.UnequipItem:
+        this.handleUnequipItem(sessionId, message as UnequipItemMessage);
+        break;
+
       case ClientMessageType.UsePortal:
         this.handleUsePortal(sessionId, message.targetZone);
         break;
@@ -246,6 +263,12 @@ export class MessageHandler {
 
     const player = Player.fromCharacterInfo(sessionId, charInfo);
     player.inventory = this.db.loadInventory(charInfo.id);
+    const savedEquipment = this.db.loadEquipment(charInfo.id);
+    if (savedEquipment) {
+      for (const [slot, itemId] of savedEquipment.entries()) {
+        player.equipment.set(slot, itemId);
+      }
+    }
     this.sessions.set(sessionId, player.id);
     this.world.addPlayer(player);
 
@@ -468,20 +491,121 @@ export class MessageHandler {
       return;
     }
 
+    const now = Date.now();
     const effect = itemDef.useEffect;
-    if (effect.type === 'heal') {
-      const event = player.heal(effect.value, player.id);
-      this.network.broadcastToZone(player.currentZone, {
-        type: ServerMessageType.DamageDealt,
-        event,
-      });
-    } else if (effect.type === 'mana') {
-      player.mana = Math.min(player.maxMana, player.mana + effect.value);
+
+    // Check cooldowns for consumables
+    if (itemDef.type === 'consumable') {
+      const cooldownCheck = player.canUseConsumable(invItem.itemId, now);
+      if (!cooldownCheck.canUse) {
+        this.network.sendToPlayer(sessionId, {
+          type: ServerMessageType.Error,
+          message: cooldownCheck.reason || 'Item on cooldown',
+        });
+        return;
+      }
     }
+
+    // Apply effect based on type
+    if (effect.type === 'heal') {
+      this.applyHealConsumable(player, now, effect.value);
+    } else if (effect.type === 'mana') {
+      this.applyManaConsumable(player, now, effect.value);
+    } else if (effect.type === 'teleport') {
+      this.applyTeleportConsumable(player, invItem.itemId, now);
+    } else if (effect.type === 'buff') {
+      this.applyBandageHoT(player, now);
+      player.setItemCooldown(invItem.itemId, now, BANDAGE_COOLDOWN_MS);
+    }
+
+    // Send confirmation
+    this.network.sendToPlayer(sessionId, {
+      type: ServerMessageType.ConsumableUsed,
+      playerId: player.id,
+      itemId: invItem.itemId,
+      effectType: effect.type,
+      value: effect.value,
+    });
+
+    // Send cooldown update
+    this.network.sendToPlayer(sessionId, {
+      type: ServerMessageType.PotionCooldownUpdate,
+      cooldownState: player.getPotionCooldownState(now),
+    });
 
     // Consume one from stack
     player.removeFromInventory(msg.slot, 1);
     this.sendInventoryUpdate(sessionId, player);
+  }
+
+  private handleEquipItem(sessionId: string, msg: EquipItemMessage): void {
+    const player = this.world.getPlayer(sessionId);
+    if (!player || player.isDead) return;
+
+    const success = player.equipItem(msg.slot, msg.equipSlot);
+    if (success) {
+      this.sendInventoryUpdate(sessionId, player);
+      this.network.sendToPlayer(sessionId, {
+        type: ServerMessageType.EquipmentUpdate,
+        equipment: player.getEquipmentState(),
+      });
+    }
+  }
+
+  private handleUnequipItem(sessionId: string, msg: UnequipItemMessage): void {
+    const player = this.world.getPlayer(sessionId);
+    if (!player || player.isDead) return;
+
+    const success = player.unequipItem(msg.equipSlot);
+    if (success) {
+      this.sendInventoryUpdate(sessionId, player);
+      this.network.sendToPlayer(sessionId, {
+        type: ServerMessageType.EquipmentUpdate,
+        equipment: player.getEquipmentState(),
+      });
+    }
+  }
+
+  private applyHealConsumable(player: Player, now: number, value: number): void {
+    const healAmount = Math.round((value / 100) * player.maxHealth);
+    const event = player.heal(healAmount, player.id);
+    this.network.broadcastToZone(player.currentZone, {
+      type: ServerMessageType.DamageDealt,
+      event,
+    });
+    player.startPotionCooldown(now, POTION_SHARED_COOLDOWN_MS);
+  }
+
+  private applyManaConsumable(player: Player, now: number, value: number): void {
+    const manaAmount = Math.round((value / 100) * player.maxMana);
+    player.mana = Math.min(player.maxMana, player.mana + manaAmount);
+    player.startPotionCooldown(now, POTION_SHARED_COOLDOWN_MS);
+  }
+
+  private applyTeleportConsumable(player: Player, itemId: string, now: number): void {
+    const spawn = ZONE_PLAYER_SPAWNS[player.currentZone];
+    player.position.x = spawn.x;
+    player.position.y = spawn.y;
+    player.setItemCooldown(itemId, now, TP_SCROLL_COOLDOWN_MS);
+    this.network.broadcastToZone(player.currentZone, {
+      type: ServerMessageType.PlayerMoved,
+      playerId: player.id,
+      position: player.position,
+      seq: 0,
+    });
+  }
+
+  private applyBandageHoT(player: Player, now: number): void {
+    const ticksCount = Math.floor(BANDAGE_HOT_DURATION_MS / TICK_INTERVAL);
+    const totalHeal = Math.round((BANDAGE_HOT_TOTAL_PERCENT / 100) * player.maxHealth);
+    const healPerTick = Math.floor(totalHeal / ticksCount);
+
+    player.bandageHoTActive = true;
+    player.bandageHoTEndTime = now + BANDAGE_HOT_DURATION_MS;
+    player.bandageHoTTicksRemaining = ticksCount;
+
+    // Store heal per tick in a simple way
+    player.bandageHealPerTick = healPerTick;
   }
 
   private sendInventoryUpdate(sessionId: string, player: Player): void {
@@ -500,6 +624,7 @@ export class MessageHandler {
       try {
         this.db.saveCharacter(player.toCharacterSaveData());
         this.db.saveInventory(player.characterId, player.inventory);
+        this.db.saveEquipment(player.characterId, player.equipment);
       } catch (error) {
         console.error(`[Game] Failed to save player ${player.name} on disconnect:`, error);
       }
@@ -532,6 +657,7 @@ export class MessageHandler {
         try {
           this.db.saveCharacter(player.toCharacterSaveData());
           this.db.saveInventory(player.characterId, player.inventory);
+          this.db.saveEquipment(player.characterId, player.equipment);
         } catch (error) {
           console.error(`[Game] Failed to save player ${player.name}:`, error);
         }

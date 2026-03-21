@@ -11,3 +11,14 @@
 - 5 test suites created: ZoneManager, PortalSystem, MobAbilities, ZonePersistence, ZoneIsolation
 - Tests cover zone isolation, portal mechanics, mob abilities (poison DoT, stun, AoE), DB persistence
 - Edge cases include: cross-zone combat prevention, rate limiting, corrupted data fallback, rapid transitions
+- Proactive test specs for Issue #5 (Potions) and Issue #6 (Equipment) created on main branch
+- ConsumableSystem.test.ts: 15 test cases covering HP/MP potions, bandages, TP scrolls, shared cooldowns
+- EquipmentSystem.test.ts: 15 test cases covering 7 slots, stat recalc, level/class requirements, persistence
+- Test specs written as placeholders with detailed setup/action/assert comments for future implementation
+- Working on main branch allows Tyrael (#5) and Leah (#6) to implement on their branches independently
+
+## Wave B Completion (2026-03-21)
+- **Test specs delivered:** 56 total specs written on main branch (26 consumable tests for #5, 30 equipment tests for #6)
+- **Non-blocking pattern:** Proactive test specs on main enabled Tyrael (#5) and Leah (#6) to work in parallel on squad/5-potions-consumables without waiting for implementation details
+- **Test readiness:** ConsumableSystem.test.ts and EquipmentSystem.test.ts written with detailed setup/action/assert structure; ready for incremental implementation as backends land
+- **Build status:** PR #20 (squad/5-potions-consumables → main) code complete; awaiting review

@@ -45,3 +45,25 @@
 - Dropped unused `accountId` assignments in tests (called createTestAccount() without capturing return)
 - Removed dead `createMapData` helper and its now-unused imports (TileType, MapData) in MobAbilities.test.ts
 - Also caught 3 pre-existing warnings in GameLoop.ts, BuffSystem.ts, MobAISystem.ts not in original list
+
+## Potions & Consumables Implementation (2026-03-21)
+- **Branch:** squad/5-potions-consumables
+- **Implemented:** Full potions & consumables system (#5)
+- **Shared types:** Added PotionCooldownState interface for tracking shared/per-item cooldowns
+- **Protocol messages:** ConsumableUsed (confirmation), PotionCooldownUpdate (client UI sync)
+- **Constants:** POTION_SHARED_COOLDOWN_MS (15s), BANDAGE_COOLDOWN_MS (30s), TP_SCROLL_COOLDOWN_MS (60s)
+- **Server consumable logic:** Instant heal (30% max HP), mana restore (40% max MP), teleport to spawn, bandage HoT
+- **Bandage mechanics:** 50% max HP over 8s (HoT), interrupted on damage via Player.takeDamage()
+- **Cooldown tracking:** Player fields potionSharedCooldownUntil, itemCooldowns Map, canUseConsumable() validation
+- **GameLoop integration:** processBandageHoT() ticks healing, respects duration and damage interrupts
+- **Client VFX:** Green particles (heal), blue spiral (mana), purple swirl (teleport), cross+particles (bandage)
+- **Event flow:** GameScene registers handlers for ConsumableUsed/PotionCooldownUpdate, emits to HUD for cooldown UI
+- **Item updates:** Minor HP Potion = 30%, Minor MP Potion = 40%, Bandage = buff type (not heal), added scroll_of_town_portal
+- **Pattern learned:** Consumables require both instant effect + client VFX + cooldown state synchronization
+
+## Equipment Backend Implementation (2026-03-21)
+- **Parallel work integration:** Leah simultaneously implemented equipment UI on same branch; coordinated by having Tyrael complete both backends first, then Leah build client on top
+- **Collaborated with Leah:** Equipment bonus calculations, stat mapping (ITEM_STAT_TO_CLASS_STAT), ring auto-resolution logic
+- **Leah's client deliverables:** Paper-doll CharacterPanel (7 slots, 3x4 grid), right-click equip/unequip, stat comparison tooltips, equipment bonus display in stats
+- **Key integration:** Message exports (EquipItemMessage, UnequipItemMessage, EquipmentUpdateMessage) needed to be added to shared/index.ts by Leah for client consistency
+

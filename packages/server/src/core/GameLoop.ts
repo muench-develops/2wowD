@@ -80,6 +80,9 @@ export class GameLoop {
       }
     }
 
+    // 2.5. Bandage HoT processing
+    this.processBandageHoT(now);
+
     // 3. Combat (auto-attacks, respawn timers)
     this.combatSystem.update(this.world, deltaMs, now);
 
@@ -150,6 +153,29 @@ export class GameLoop {
     if (player && !player.isDead) {
       const event = player.heal(heal, 'buff');
       this.network.broadcastToZone(player.currentZone, { type: ServerMessageType.DamageDealt, event });
+    }
+  }
+
+  private processBandageHoT(now: number): void {
+    for (const zone of this.world.zoneManager.getAllZones()) {
+      for (const player of zone.players.values()) {
+        if (player.bandageHoTActive && player.bandageHoTTicksRemaining > 0) {
+          if (now >= player.bandageHoTEndTime) {
+            player.bandageHoTActive = false;
+            player.bandageHoTTicksRemaining = 0;
+          } else {
+            const healAmount = player.bandageHealPerTick || 0;
+            if (healAmount > 0) {
+              const event = player.heal(healAmount, player.id);
+              this.network.broadcastToZone(player.currentZone, {
+                type: ServerMessageType.DamageDealt,
+                event,
+              });
+            }
+            player.bandageHoTTicksRemaining--;
+          }
+        }
+      }
     }
   }
 }
