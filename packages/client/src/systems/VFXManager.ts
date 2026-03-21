@@ -587,4 +587,164 @@ export class VFXManager {
       },
     });
   }
+
+  // ====================================================================
+  // Consumable Effects
+  // ====================================================================
+
+  /** Play visual effect for consumable use */
+  playConsumableEffect(effectType: 'heal' | 'mana' | 'teleport' | 'buff', x: number, y: number): void {
+    switch (effectType) {
+      case 'heal':
+        this.playHealEffect(x, y);
+        break;
+      case 'mana':
+        this.playManaEffect(x, y);
+        break;
+      case 'teleport':
+        this.playTeleportEffect(x, y);
+        break;
+      case 'buff':
+        this.playBandageEffect(x, y);
+        break;
+    }
+  }
+
+  /** Health potion: green upward particles */
+  private playHealEffect(x: number, y: number): void {
+    for (let i = 0; i < 8; i++) {
+      const ox = (Math.random() - 0.5) * 18;
+      const delay = Math.random() * 150;
+      
+      this.scene.time.delayedCall(delay, () => {
+        const g = this.scene.add.graphics();
+        g.setDepth(VFX_DEPTH);
+        g.fillStyle(0x44ff88, 0.9);
+        g.fillCircle(0, 0, 2 + Math.random() * 2);
+        g.setPosition(x + ox, y);
+
+        this.scene.tweens.add({
+          targets: g,
+          y: y - 25 - Math.random() * 15,
+          alpha: 0,
+          duration: 500 + Math.random() * 200,
+          ease: 'Cubic.easeOut',
+          onComplete: () => g.destroy(),
+        });
+      });
+    }
+  }
+
+  /** Mana potion: blue spiral particles */
+  private playManaEffect(x: number, y: number): void {
+    for (let i = 0; i < 10; i++) {
+      const angle = (i / 10) * Math.PI * 2;
+      const delay = i * 30;
+      
+      this.scene.time.delayedCall(delay, () => {
+        const g = this.scene.add.graphics();
+        g.setDepth(VFX_DEPTH);
+        g.fillStyle(0x4488ff, 0.9);
+        g.fillCircle(0, 0, 2);
+        
+        const startR = 8;
+        const endR = 20;
+        const startX = x + Math.cos(angle) * startR;
+        const startY = y + Math.sin(angle) * startR;
+        const endX = x + Math.cos(angle + Math.PI) * endR;
+        const endY = y + Math.sin(angle + Math.PI) * endR - 15;
+        
+        g.setPosition(startX, startY);
+
+        this.scene.tweens.add({
+          targets: g,
+          x: endX,
+          y: endY,
+          alpha: 0,
+          duration: 400,
+          ease: 'Cubic.easeOut',
+          onComplete: () => g.destroy(),
+        });
+      });
+    }
+  }
+
+  /** Teleport scroll: swirl/portal effect */
+  private playTeleportEffect(x: number, y: number): void {
+    const g = this.scene.add.graphics();
+    g.setDepth(VFX_DEPTH);
+
+    const state = { radius: 2, alpha: 1, rotation: 0 };
+    this.scene.tweens.add({
+      targets: state,
+      radius: 30,
+      rotation: Math.PI * 3,
+      alpha: 0,
+      duration: 600,
+      ease: 'Cubic.easeOut',
+      onUpdate: () => {
+        g.clear();
+        const segments = 6;
+        for (let i = 0; i < segments; i++) {
+          const a = state.rotation + (i * Math.PI * 2) / segments;
+          const r = state.radius;
+          g.lineStyle(3, 0xaa44ff, state.alpha);
+          g.beginPath();
+          g.arc(x, y, r, a, a + 0.8, false);
+          g.strokePath();
+        }
+      },
+      onComplete: () => g.destroy(),
+    });
+
+    // Particles
+    for (let i = 0; i < 12; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = 5 + Math.random() * 20;
+      const px = x + Math.cos(a) * r;
+      const py = y + Math.sin(a) * r;
+      this.scene.time.delayedCall(Math.random() * 300, () => {
+        this.spawnParticle(px, py, 0xcc88ff, 3, 400);
+      });
+    }
+  }
+
+  /** Bandage: wrapping/healing icon effect */
+  private playBandageEffect(x: number, y: number): void {
+    const g = this.scene.add.graphics();
+    g.setDepth(VFX_DEPTH);
+    
+    // Draw a simple cross/plus sign
+    g.lineStyle(3, 0xffcccc, 1);
+    g.beginPath();
+    g.moveTo(x - 8, y);
+    g.lineTo(x + 8, y);
+    g.moveTo(x, y - 8);
+    g.lineTo(x, y + 8);
+    g.strokePath();
+
+    // Pulsing effect
+    const state = { scale: 1, alpha: 1 };
+    this.scene.tweens.add({
+      targets: state,
+      scale: 1.5,
+      alpha: 0,
+      duration: 500,
+      ease: 'Cubic.easeOut',
+      onUpdate: () => {
+        g.setAlpha(state.alpha);
+        g.setScale(state.scale);
+      },
+      onComplete: () => g.destroy(),
+    });
+
+    // Light particles
+    for (let i = 0; i < 6; i++) {
+      const ox = (Math.random() - 0.5) * 15;
+      const oy = (Math.random() - 0.5) * 15;
+      this.scene.time.delayedCall(i * 50, () => {
+        this.spawnParticle(x + ox, y + oy, 0xffeecc, 2, 300);
+      });
+    }
+  }
 }

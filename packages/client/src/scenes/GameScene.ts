@@ -467,6 +467,17 @@ export class GameScene extends Phaser.Scene {
     this.net.on(ServerMessageType.ZoneChanged, (msg: ZoneChangedMessage) => {
       this.handleZoneChange(msg);
     });
+
+    this.net.on(ServerMessageType.ConsumableUsed, (msg: { playerId: string; itemId: string; effectType: string; value: number }) => {
+      const player = this.players.get(msg.playerId);
+      if (player) {
+        VFXManager.instance.playConsumableEffect(msg.effectType as any, player.sprite.x, player.sprite.y);
+      }
+    });
+
+    this.net.on(ServerMessageType.PotionCooldownUpdate, (msg: { cooldownState: { sharedCooldownMs: number; itemCooldowns: Record<string, number> } }) => {
+      this.events.emit('potionCooldownUpdate', msg.cooldownState);
+    });
   }
 
   private registerInputHandlers(): void {
