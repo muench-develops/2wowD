@@ -76,6 +76,9 @@ export class Player {
   // Inventory
   inventory: InventoryItem[] = [];
 
+  // Gold
+  gold: number = 0;
+
   // Equipment
   equipment: Map<EquipmentSlot, string | null> = createDefaultEquipmentMap();
 
@@ -126,6 +129,9 @@ export class Player {
     player.position.x = charInfo.posX;
     player.position.y = charInfo.posY;
 
+    // Load gold
+    player.gold = charInfo.gold ?? 0;
+
     // Set health/mana (use max if stored as -1)
     if (charInfo.health > 0) {
       player.health = Math.min(charInfo.health, player.maxHealth);
@@ -146,6 +152,7 @@ export class Player {
     health: number;
     mana: number;
     currentZone: string;
+    gold: number;
   } {
     return {
       id: this.characterId,
@@ -156,6 +163,7 @@ export class Player {
       health: this.health,
       mana: this.mana,
       currentZone: this.currentZone,
+      gold: this.gold,
     };
   }
 
@@ -316,6 +324,10 @@ export class Player {
     }
 
     return leveled;
+  }
+
+  addGold(amount: number): void {
+    this.gold += amount;
   }
 
   getCooldownStates(): CooldownState[] {

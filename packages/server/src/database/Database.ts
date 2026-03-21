@@ -1,5 +1,6 @@
 import BetterSqlite3 from 'better-sqlite3';
-import { InventoryItem, generateId, EquipmentSlot, createDefaultEquipmentMap } from '@isoheim/shared';
+import { InventoryItem, generateId, EquipmentSlot, createDefaultEquipmentMap, QuestId, QuestState, QuestObjective } from '@isoheim/shared';
+import type { PlayerQuestEntry } from '../systems/QuestManager.js';
 
 export interface CharacterRow {
   id: string;
@@ -14,6 +15,7 @@ export interface CharacterRow {
   mana: number;
   current_zone: string;
   tutorial_complete: number;
+  gold: number;
   created_at: number;
   last_played: number;
 }
@@ -98,6 +100,26 @@ export class Database {
       `);
       console.log('[DB] Migration: Added tutorial_complete column to characters table');
     }
+
+    // Migration: Create quest_progress table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS quest_progress (
+        character_id TEXT NOT NULL,
+        quest_id TEXT NOT NULL,
+        state TEXT NOT NULL,
+        objectives_json TEXT NOT NULL,
+        PRIMARY KEY (character_id, quest_id)
+      );
+    `);
+
+    // Migration: Add gold column to existing characters
+    const hasGold = columns.some(col => col.name === 'gold');
+    if (!hasGold) {
+      this.db.exec(`
+        ALTER TABLE characters ADD COLUMN gold INTEGER NOT NULL DEFAULT 0;
+      `);
+      console.log('[DB] Migration: Added gold column to characters table');
+    }
   }
 
   // ── Account methods ──────────────────────────────────────
@@ -155,12 +177,13 @@ export class Database {
     health: number;
     mana: number;
     currentZone: string;
+    gold: number;
   }): void {
     this.db.prepare(
       `UPDATE characters
-       SET level = ?, xp = ?, pos_x = ?, pos_y = ?, health = ?, mana = ?, current_zone = ?, last_played = ?
+       SET level = ?, xp = ?, pos_x = ?, pos_y = ?, health = ?, mana = ?, current_zone = ?, gold = ?, last_played = ?
        WHERE id = ?`,
-    ).run(data.level, data.xp, data.posX, data.posY, data.health, data.mana, data.currentZone, Date.now(), data.id);
+    ).run(data.level, data.xp, data.posX, data.posY, data.health, data.mana, data.currentZone, data.gold, Date.now(), data.id);
   }
 
   deleteCharacter(charId: string, accountId: string): boolean {
@@ -241,6 +264,37 @@ export class Database {
     }
 
     return equipment;
+  }
+
+  // ── Quest Progress methods ──────────────────────────────────
+
+  saveQuestProgress(characterId: string, quests: Map<QuestId, PlayerQuestEntry>): void {
+    const deleteAll = this.db.prepare('DELETE FROM quest_progress WHERE character_id = ?');
+    const insert = this.db.prepare(
+      'INSERT INTO quest_progress (character_id, quest_id, state, objectives_json) VALUES (?, ?, ?, ?)',
+    );
+    const saveAll = this.db.transaction(() => {
+      deleteAll.run(characterId);
+      for (const [questId, entry] of quests) {
+        insert.run(characterId, questId, entry.state, JSON.stringify(entry.objectives));
+      }
+    });
+    saveAll();
+  }
+
+  loadQuestProgress(characterId: string): Map<QuestId, PlayerQuestEntry> {
+    const rows = this.db
+      .prepare('SELECT quest_id, state, objectives_json FROM quest_progress WHERE character_id = ?')
+      .all(characterId) as { quest_id: string; state: string; objectives_json: string }[];
+
+    const quests = new Map<QuestId, PlayerQuestEntry>();
+    for (const row of rows) {
+      quests.set(row.quest_id as QuestId, {
+        state: row.state as QuestState,
+        objectives: JSON.parse(row.objectives_json) as QuestObjective[],
+      });
+    }
+    return quests;
   }
 
   close(): void {

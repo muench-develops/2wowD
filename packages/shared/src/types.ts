@@ -257,6 +257,7 @@ export interface CharacterInfo {
   createdAt: number;
   lastPlayed: number;
   currentZone?: ZoneId;
+  gold?: number;
 }
 
 // ============================================================
