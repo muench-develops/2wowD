@@ -76,3 +76,24 @@
 **Pattern Observed:** Playwright E2E infrastructure was added in PR #11. This PR fixes a configuration inconsistency from that initial setup.
 **Code Quality:** Clean config file, no code smells. The fix is a single-line change from `expect: { timeout: 60_000 }` to `expect: { timeout: 5_000 }`.
 **Note:** PR is in draft status; ready to merge once un-drafted by maintainer.
+
+## PR #20 Review — Wave B Code Complete (2026-03-21)
+**Branch:** squad/5-potions-consumables → main  
+**Status:** Review in progress  
+**Agent Reviews:** Tyrael (Potions + Equipment Backend), Leah (Equipment Client UI)  
+**Size:** 3 commits, 638 insertions, ~450 insertions, 12+ files modified  
+
+**Scope:**
+- **Potions & Consumables (#5):** Dual-cooldown system (15s shared, 30-60s per-item), HoT mechanics (bandage), instant consumable effects, client VFX support
+- **Equipment Backend (#6):** 7-slot system, equip/unequip mechanics, stat recalculation, level/class requirements, ring auto-resolution, database persistence
+- **Equipment UI (#6):** Paper-doll CharacterPanel layout, right-click dual-purpose (consumables→use, items→equip), stat comparison tooltips, equipment bonus display
+
+**Build Status:** All 3 packages compile clean, ESLint passes, MegaLinter ready, TypeScript verified
+
+**Quality Checkpoints:**
+- Tyrael: ESLint cleanup completed, 0 errors
+- Leah: UI component clean code patterns applied (named constants, function size, event cleanup)
+- Shared messages: Protocol exports added (EquipItemMessage, UnequipItemMessage, EquipmentUpdateMessage)
+- Lint-only changes separated from logic changes
+
+**Notes:** Parallel work on same branch resolved by serializing branch-switch (Tyrael complete → Leah build). Lesson: Future waves should use git worktrees or explicit coordination protocol.

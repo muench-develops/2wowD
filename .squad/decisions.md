@@ -105,6 +105,57 @@
    8. **Tooltip System** — Event-based tooltips emitted from GameScene to HUDScene for portal interaction
 **Why:** Delivers Phase 3 zone rendering and client-side portal/transition mechanics, maintains procedural art style, follows clean code UI patterns
 
+### 2026-03-21: Potions & Consumables Cooldown Design
+**Date:** 2026-03-21  
+**Agent:** Tyrael  
+**Context:** Issue #5 — Potions & Consumables Implementation
+
+**What:**
+Implemented dual-cooldown system for consumables:
+1. **Shared potion cooldown** (15s) applies to all HP/MP potions
+2. **Individual item cooldowns** for special items (Bandage 30s, TP Scroll 60s)
+
+**Rationale:**
+- Prevents potion spam (too easy to stack instant heals)
+- Shared cooldown encourages strategic HP vs MP potion use
+- Individual cooldowns allow unique mechanics (bandage HoT, teleport escape)
+- Matches standard MMO design patterns (WoW, FFXIV)
+
+**Technical Approach:**
+- **Server State:** `Player.potionSharedCooldownUntil: number` — shared CD expiry timestamp; `Player.itemCooldowns: Map<string, number>` — per-itemId expiry timestamps
+- **Validation:** `canUseConsumable()` checks both cooldowns before allowing use
+- **Client Sync:** `PotionCooldownUpdate` message sends remaining milliseconds for UI display
+- **Bandage HoT:** 50% max HP over 8s, interrupted on damage via `Player.takeDamage()`; encourages out-of-combat use
+
+**Alternatives Considered:**
+1. Global consumable cooldown — Too restrictive, kills item variety
+2. No shared cooldown — Instant heal spam breaks combat balance
+3. Percentage-based HoT per tick — Went with fixed amount for predictability
+
+**Impact:**
+- Balanced consumable usage in combat
+- Clear distinction between instant (potion) and HoT (bandage) healing
+- Extensible for future consumable types (buff scrolls, damage potions)
+
+### 2026-03-21: Equipment UI Architecture
+**By:** Leah (Frontend Dev)  
+**Context:** Issue #6 — Equipment system client UI  
+
+**What:**
+1. **Dual-panel equipment state** — Both `CharacterPanel` and `InventoryPanel` hold a copy of `PlayerEquipment` state, synced via HUDScene forwarding the `equipmentUpdate` event from GameScene to both panels.
+2. **Paper-doll layout** — 7 equipment slots arranged in a 3-column × 4-row grid inside CharacterPanel using `EQUIP_SLOT_LAYOUT` array (col: -1/0/1, row: 0-3). Panel widened from 240px → 280px to fit.
+3. **Right-click dual purpose** — Right-click on inventory items: consumables → use, equippable items → equip. Replaces previous consumable-only right-click handler.
+4. **Ring auto-resolution** — When equipping a ring, client checks Ring1 first. If occupied, falls back to Ring2. Server handles the actual slot assignment authoritatively.
+5. **Stat comparison tooltip** — Inventory tooltip now shows stat diffs (green +N / red -N) against the currently equipped item in that slot. Uses `EQUIPMENT_SLOT_FOR_ITEM_TYPE` to determine which slot to compare.
+6. **Equipment bonus display** — Stats section in CharacterPanel shows base class stats with equipment bonuses appended as green `(+N)` text. Uses `ITEM_STAT_TO_CLASS_STAT` mapping (critChance excluded as it has no ClassStats equivalent).
+7. **Shared index exports** — Added `EquipItemMessage`, `UnequipItemMessage`, `EquipmentUpdateMessage` exports to shared/src/index.ts (were missing from Tyrael's backend work).
+
+**Why:**
+- Dual-state approach avoids cross-panel dependencies while keeping UI responsive
+- Paper-doll layout follows MMO convention for intuitive equipment management
+- Right-click context-sensitivity (equip vs use) is standard MMO UX
+- Equipment bonuses shown inline avoid separate tooltip needs for equipped gear impact
+
 ## Governance
 
 - All meaningful changes require team consensus

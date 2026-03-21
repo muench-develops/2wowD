@@ -61,3 +61,9 @@
 - **Item updates:** Minor HP Potion = 30%, Minor MP Potion = 40%, Bandage = buff type (not heal), added scroll_of_town_portal
 - **Pattern learned:** Consumables require both instant effect + client VFX + cooldown state synchronization
 
+## Equipment Backend Implementation (2026-03-21)
+- **Parallel work integration:** Leah simultaneously implemented equipment UI on same branch; coordinated by having Tyrael complete both backends first, then Leah build client on top
+- **Collaborated with Leah:** Equipment bonus calculations, stat mapping (ITEM_STAT_TO_CLASS_STAT), ring auto-resolution logic
+- **Leah's client deliverables:** Paper-doll CharacterPanel (7 slots, 3x4 grid), right-click equip/unequip, stat comparison tooltips, equipment bonus display in stats
+- **Key integration:** Message exports (EquipItemMessage, UnequipItemMessage, EquipmentUpdateMessage) needed to be added to shared/index.ts by Leah for client consistency
+
