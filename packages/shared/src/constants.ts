@@ -1,4 +1,4 @@
-import { ClassStats, ClassType, AbilityDef, BuffDef, MobType, ItemDef, ItemType, ItemRarity, ZoneId, ZoneMetadata, Portal, Vec2, EquipmentSlot } from './types.js';
+import { ClassStats, ClassType, AbilityDef, BuffDef, MobType, ItemDef, ItemType, ItemRarity, ZoneId, ZoneMetadata, Portal, Vec2, EquipmentSlot, NpcId, NpcDef, QuestId, QuestDef, QuestObjectiveType, QuestState } from './types.js';
 
 // ============================================================
 // Game Constants
@@ -1315,4 +1315,249 @@ export const EQUIPMENT_SLOT_FOR_ITEM_TYPE: Record<ItemType, EquipmentSlot | null
   [ItemType.Consumable]: null,
   [ItemType.QuestItem]: null,
   [ItemType.Misc]: null,
+};
+
+// ============================================================
+// NPC Definitions
+// ============================================================
+
+export const NPC_INTERACTION_RANGE = 3.0;
+
+export const NPC_DEFINITIONS: Record<NpcId, NpcDef> = {
+  [NpcId.GuardCaptain]: {
+    id: NpcId.GuardCaptain,
+    name: 'Guard Captain Aldric',
+    zone: ZoneId.StarterPlains,
+    position: { x: 22, y: 22 },
+    dialogue: {
+      greeting: 'Hail, adventurer! The plains are overrun with goblins. We need your help.',
+      questAvailable: 'I have a task for you, if you are brave enough.',
+      questInProgress: 'Have you completed what I asked? The safety of the plains depends on it.',
+      questComplete: 'Excellent work! You have proven yourself a true defender of the realm.',
+    },
+    questIds: [QuestId.SlayGoblins, QuestId.HelpTheGuard],
+  },
+  [NpcId.Merchant]: {
+    id: NpcId.Merchant,
+    name: 'Merchant Elara',
+    zone: ZoneId.StarterPlains,
+    position: { x: 28, y: 23 },
+    dialogue: {
+      greeting: 'Welcome to my shop! Well... what is left of it. These monsters have been bad for business.',
+      questAvailable: 'Could you help me gather some materials? I will make it worth your while.',
+      questInProgress: 'Any luck finding those materials I asked for?',
+      questComplete: 'Wonderful! These will fetch a fine price. Here is your reward.',
+    },
+    questIds: [QuestId.CollectWolfPelts, QuestId.VisitTheMerchant],
+  },
+  [NpcId.Ranger]: {
+    id: NpcId.Ranger,
+    name: 'Ranger Theron',
+    zone: ZoneId.DarkForest,
+    position: { x: 10, y: 28 },
+    dialogue: {
+      greeting: 'Quiet now... the forest has eyes. Dangerous creatures lurk in these shadows.',
+      questAvailable: 'The forest grows more dangerous by the day. I could use a capable hand.',
+      questInProgress: 'Stay vigilant. The forest is unforgiving to the careless.',
+      questComplete: 'Well done. Few survive the perils of this forest. You have earned my respect.',
+    },
+    questIds: [QuestId.HuntWolves, QuestId.ClearSpiders, QuestId.BanditThreat],
+  },
+  [NpcId.Hermit]: {
+    id: NpcId.Hermit,
+    name: 'Old Hermit Jorin',
+    zone: ZoneId.DarkForest,
+    position: { x: 35, y: 40 },
+    dialogue: {
+      greeting: 'Ah, a visitor! I have lived in these woods longer than most remember. I know its secrets.',
+      questAvailable: 'There are things hidden in this forest that few dare to seek. Interested?',
+      questInProgress: 'The forest reveals its secrets only to the persistent.',
+      questComplete: 'You found it! Remarkable. The forest has accepted you.',
+    },
+    questIds: [QuestId.CollectSkeletonBones, QuestId.ExploreForestDepths],
+  },
+  [NpcId.Adventurer]: {
+    id: NpcId.Adventurer,
+    name: 'Adventurer Kael',
+    zone: ZoneId.AncientDungeon,
+    position: { x: 18, y: 35 },
+    dialogue: {
+      greeting: 'Another soul brave enough to enter the dungeon! Or foolish enough. Time will tell.',
+      questAvailable: 'The dungeon holds both treasure and terror. Ready to face what lies within?',
+      questInProgress: 'Still alive? Good. Keep pushing deeper.',
+      questComplete: 'Incredible! You have conquered the dungeon depths. A true hero!',
+    },
+    questIds: [QuestId.ClearSkeletonMages, QuestId.CollectRareDrops, QuestId.DungeonExplorer],
+  },
+  [NpcId.Priest]: {
+    id: NpcId.Priest,
+    name: 'High Priest Maren',
+    zone: ZoneId.AncientDungeon,
+    position: { x: 22, y: 36 },
+    dialogue: {
+      greeting: 'The undead corruption here is powerful. Only the bravest can purge it.',
+      questAvailable: 'The Bone Lord must be defeated. Will you answer the call?',
+      questInProgress: 'The Bone Lord still draws breath... if you can call it that. Press on!',
+      questComplete: 'The evil is vanquished! Light returns to these halls. You have my eternal gratitude.',
+    },
+    questIds: [QuestId.DefeatBoneLord],
+  },
+};
+
+// ============================================================
+// Quest Definitions
+// ============================================================
+
+export const QUEST_DEFINITIONS: Record<QuestId, QuestDef> = {
+  // ── Starter Plains (Level 1-3) ────────────────────────────────
+  [QuestId.SlayGoblins]: {
+    id: QuestId.SlayGoblins,
+    name: 'Goblin Menace',
+    description: 'The goblins have grown bold and attack travelers on sight. Defeat 5 goblins to thin their ranks.',
+    npcId: NpcId.GuardCaptain,
+    objectives: [
+      { type: QuestObjectiveType.Defeat, target: MobType.Goblin, required: 5, current: 0 },
+    ],
+    rewards: { xp: 50, gold: 10 },
+    requiredLevel: 1,
+  },
+  [QuestId.CollectWolfPelts]: {
+    id: QuestId.CollectWolfPelts,
+    name: 'Pelts for Trade',
+    description: 'The merchant needs wolf pelts for her leather goods. Collect 3 wolf pelts from the wolves nearby.',
+    npcId: NpcId.Merchant,
+    objectives: [
+      { type: QuestObjectiveType.Collect, target: 'wolf_pelt', required: 3, current: 0 },
+    ],
+    rewards: { xp: 40, gold: 15, items: [{ itemId: 'minor_health_potion', quantity: 3 }] },
+    requiredLevel: 1,
+  },
+  [QuestId.HelpTheGuard]: {
+    id: QuestId.HelpTheGuard,
+    name: 'Ears as Proof',
+    description: 'The Guard Captain wants proof of goblin kills. Collect 8 goblin ears as evidence.',
+    npcId: NpcId.GuardCaptain,
+    objectives: [
+      { type: QuestObjectiveType.Collect, target: 'goblin_ear', required: 8, current: 0 },
+    ],
+    rewards: { xp: 75, gold: 20, items: [{ itemId: 'iron_sword', quantity: 1 }] },
+    requiredLevel: 2,
+    prerequisiteQuest: QuestId.SlayGoblins,
+  },
+  [QuestId.VisitTheMerchant]: {
+    id: QuestId.VisitTheMerchant,
+    name: 'Meet the Merchant',
+    description: 'The Guard Captain mentioned a merchant nearby who could use some help. Go speak with her.',
+    npcId: NpcId.Merchant,
+    objectives: [
+      { type: QuestObjectiveType.Visit, target: ZoneId.StarterPlains, required: 1, current: 0 },
+    ],
+    rewards: { xp: 20, gold: 5 },
+    requiredLevel: 1,
+  },
+
+  // ── Dark Forest (Level 3-6) ──────────────────────────────────
+  [QuestId.HuntWolves]: {
+    id: QuestId.HuntWolves,
+    name: 'Alpha Hunt',
+    description: 'The wolf packs in the Dark Forest are led by a dangerous alpha. Defeat 3 Wolf Alphas.',
+    npcId: NpcId.Ranger,
+    objectives: [
+      { type: QuestObjectiveType.Defeat, target: MobType.WolfAlpha, required: 3, current: 0 },
+    ],
+    rewards: { xp: 120, gold: 30 },
+    requiredLevel: 3,
+  },
+  [QuestId.ClearSpiders]: {
+    id: QuestId.ClearSpiders,
+    name: 'Web of Darkness',
+    description: 'Giant spiders have infested the southern part of the forest. Clear out 6 of them.',
+    npcId: NpcId.Ranger,
+    objectives: [
+      { type: QuestObjectiveType.Defeat, target: MobType.Spider, required: 6, current: 0 },
+    ],
+    rewards: { xp: 100, gold: 25, items: [{ itemId: 'health_potion', quantity: 2 }] },
+    requiredLevel: 3,
+  },
+  [QuestId.CollectSkeletonBones]: {
+    id: QuestId.CollectSkeletonBones,
+    name: 'Bones of the Restless',
+    description: 'The hermit needs skeleton bones for his research into the undead curse. Collect 5 skeleton bones.',
+    npcId: NpcId.Hermit,
+    objectives: [
+      { type: QuestObjectiveType.Collect, target: 'skeleton_bone', required: 5, current: 0 },
+    ],
+    rewards: { xp: 110, gold: 25 },
+    requiredLevel: 4,
+  },
+  [QuestId.ExploreForestDepths]: {
+    id: QuestId.ExploreForestDepths,
+    name: 'Into the Deep Woods',
+    description: 'The hermit speaks of an ancient power in the forest depths. Explore the Dark Forest to find it.',
+    npcId: NpcId.Hermit,
+    objectives: [
+      { type: QuestObjectiveType.Visit, target: ZoneId.DarkForest, required: 1, current: 0 },
+    ],
+    rewards: { xp: 80, gold: 15 },
+    requiredLevel: 3,
+  },
+  [QuestId.BanditThreat]: {
+    id: QuestId.BanditThreat,
+    name: 'Bandit Cleanup',
+    description: 'Bandits have set up camp in the forest and ambush travelers. Defeat 5 bandits to scatter them.',
+    npcId: NpcId.Ranger,
+    objectives: [
+      { type: QuestObjectiveType.Defeat, target: MobType.Bandit, required: 5, current: 0 },
+    ],
+    rewards: { xp: 130, gold: 35, items: [{ itemId: 'chainmail', quantity: 1 }] },
+    requiredLevel: 4,
+    prerequisiteQuest: QuestId.HuntWolves,
+  },
+
+  // ── Ancient Dungeon (Level 5-10) ─────────────────────────────
+  [QuestId.ClearSkeletonMages]: {
+    id: QuestId.ClearSkeletonMages,
+    name: 'Mage Purge',
+    description: 'Skeleton Mages channel dark energy that sustains the undead horde. Defeat 4 of them.',
+    npcId: NpcId.Adventurer,
+    objectives: [
+      { type: QuestObjectiveType.Defeat, target: MobType.SkeletonMage, required: 4, current: 0 },
+    ],
+    rewards: { xp: 200, gold: 50 },
+    requiredLevel: 6,
+  },
+  [QuestId.DefeatBoneLord]: {
+    id: QuestId.DefeatBoneLord,
+    name: 'The Bone Lord Falls',
+    description: 'The Bone Lord is the source of the undead corruption. Defeat this powerful foe to restore peace.',
+    npcId: NpcId.Priest,
+    objectives: [
+      { type: QuestObjectiveType.Defeat, target: MobType.BoneLord, required: 1, current: 0 },
+    ],
+    rewards: { xp: 500, gold: 100, items: [{ itemId: 'health_potion', quantity: 5 }] },
+    requiredLevel: 8,
+    prerequisiteQuest: QuestId.ClearSkeletonMages,
+  },
+  [QuestId.CollectRareDrops]: {
+    id: QuestId.CollectRareDrops,
+    name: 'Dungeon Salvage',
+    description: 'The adventurer seeks rare bones from the dungeon depths. Collect 10 skeleton bones.',
+    npcId: NpcId.Adventurer,
+    objectives: [
+      { type: QuestObjectiveType.Collect, target: 'skeleton_bone', required: 10, current: 0 },
+    ],
+    rewards: { xp: 250, gold: 60, items: [{ itemId: 'silver_ring', quantity: 1 }] },
+    requiredLevel: 6,
+  },
+  [QuestId.DungeonExplorer]: {
+    id: QuestId.DungeonExplorer,
+    name: 'Charting the Depths',
+    description: 'Map the Ancient Dungeon by venturing into its darkest corners.',
+    npcId: NpcId.Adventurer,
+    objectives: [
+      { type: QuestObjectiveType.Visit, target: ZoneId.AncientDungeon, required: 1, current: 0 },
+    ],
+    rewards: { xp: 150, gold: 30 },
+    requiredLevel: 5,
+  },
 };

@@ -17,6 +17,12 @@ import {
   EquipmentSlot,
   PlayerEquipment,
   PotionCooldownState,
+  NpcId,
+  QuestId,
+  QuestDef,
+  QuestObjective,
+  QuestState,
+  QuestReward,
 } from './types.js';
 
 // ============================================================
@@ -49,6 +55,11 @@ export enum ClientMessageType {
   UsePortal = 'use_portal',
   EquipItem = 'equip_item',
   UnequipItem = 'unequip_item',
+  // NPCs & Quests
+  InteractNPC = 'interact_npc',
+  AcceptQuest = 'accept_quest',
+  AbandonQuest = 'abandon_quest',
+  TurnInQuest = 'turn_in_quest',
 }
 
 // --- Auth Messages (Client → Server) ---
@@ -177,6 +188,28 @@ export interface UnequipItemMessage {
   equipSlot: EquipmentSlot;
 }
 
+// --- NPC & Quest Messages (Client → Server) ---
+
+export interface InteractNPCMessage {
+  type: ClientMessageType.InteractNPC;
+  npcId: NpcId;
+}
+
+export interface AcceptQuestMessage {
+  type: ClientMessageType.AcceptQuest;
+  questId: QuestId;
+}
+
+export interface AbandonQuestMessage {
+  type: ClientMessageType.AbandonQuest;
+  questId: QuestId;
+}
+
+export interface TurnInQuestMessage {
+  type: ClientMessageType.TurnInQuest;
+  questId: QuestId;
+}
+
 export type ClientMessage =
   | RegisterMessage
   | LoginMessage
@@ -199,7 +232,11 @@ export type ClientMessage =
   | UseItemMessage
   | UsePortalMessage
   | EquipItemMessage
-  | UnequipItemMessage;
+  | UnequipItemMessage
+  | InteractNPCMessage
+  | AcceptQuestMessage
+  | AbandonQuestMessage
+  | TurnInQuestMessage;
 
 // ============================================================
 // Server → Client Messages
@@ -242,6 +279,11 @@ export enum ServerMessageType {
   ConsumableUsed = 'consumable_used',
   PotionCooldownUpdate = 'potion_cooldown_update',
   EquipmentUpdate = 'equipment_update',
+  // NPCs & Quests
+  NPCDialogue = 'npc_dialogue',
+  QuestUpdate = 'quest_update',
+  QuestCompleted = 'quest_completed',
+  NPCList = 'npc_list',
 }
 
 // --- Auth Messages (Server → Client) ---
@@ -442,6 +484,35 @@ export interface EquipmentUpdateMessage {
   equipment: PlayerEquipment;
 }
 
+// --- NPC & Quest Messages (Server → Client) ---
+
+export interface NPCDialogueMessage {
+  type: ServerMessageType.NPCDialogue;
+  npcId: NpcId;
+  dialogue: string;
+  availableQuests: QuestDef[];
+  activeQuests: Array<{ questId: QuestId; objectives: QuestObjective[] }>;
+  completableQuests: QuestId[];
+}
+
+export interface QuestUpdateMessage {
+  type: ServerMessageType.QuestUpdate;
+  questId: QuestId;
+  objectives: QuestObjective[];
+  state: QuestState;
+}
+
+export interface QuestCompletedMessage {
+  type: ServerMessageType.QuestCompleted;
+  questId: QuestId;
+  rewards: QuestReward;
+}
+
+export interface NPCListMessage {
+  type: ServerMessageType.NPCList;
+  npcs: Array<{ id: NpcId; position: Vec2; hasQuest: boolean; questReady: boolean }>;
+}
+
 export type ServerMessage =
   | RegisterSuccessMessage
   | RegisterFailedMessage
@@ -475,4 +546,8 @@ export type ServerMessage =
   | ZoneChangedMessage
   | ConsumableUsedMessage
   | PotionCooldownUpdateMessage
-  | EquipmentUpdateMessage;
+  | EquipmentUpdateMessage
+  | NPCDialogueMessage
+  | QuestUpdateMessage
+  | QuestCompletedMessage
+  | NPCListMessage;
