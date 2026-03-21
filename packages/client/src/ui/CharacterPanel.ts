@@ -10,6 +10,7 @@ import {
   ClientMessageType,
 } from '@isoheim/shared';
 import { NetworkManager } from '../network/NetworkManager';
+import { formatItemStats } from './formatItemStats';
 
 export interface CharacterStatsData {
   name: string;
@@ -205,10 +206,10 @@ export class CharacterPanel {
   }
 
   private addSeparator(yOffset: number): number {
-    const sep = this.scene.add.graphics();
-    sep.lineStyle(1, PANEL_BORDER_COLOR, 0.6);
-    sep.lineBetween(PADDING, yOffset, PANEL_WIDTH - PADDING, yOffset);
-    this.container.add(sep);
+    const separator = this.scene.add.graphics();
+    separator.lineStyle(1, PANEL_BORDER_COLOR, 0.6);
+    separator.lineBetween(PADDING, yOffset, PANEL_WIDTH - PADDING, yOffset);
+    this.container.add(separator);
     return yOffset + 8;
   }
 
@@ -422,13 +423,7 @@ export class CharacterPanel {
     let text = `${def.icon} ${def.name}\n`;
     text += `${def.type} | ${def.rarity}\n`;
     if (def.description) text += `${def.description}\n`;
-    const stats = def.stats;
-    if (stats.attack) text += `+${stats.attack} Attack\n`;
-    if (stats.defense) text += `+${stats.defense} Defense\n`;
-    if (stats.health) text += `+${stats.health} Health\n`;
-    if (stats.mana) text += `+${stats.mana} Mana\n`;
-    if (stats.speed) text += `+${stats.speed} Speed\n`;
-    if (stats.critChance) text += `+${(stats.critChance * 100).toFixed(0)}% Crit\n`;
+    text += formatItemStats(def.stats);
     text += '\nClick to unequip';
 
     this.equipTooltip = this.scene.add.container(slotX + EQUIP_SLOT_SIZE + 4, slotY);

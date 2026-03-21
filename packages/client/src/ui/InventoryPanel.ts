@@ -11,6 +11,7 @@ import {
   EQUIPMENT_SLOT_FOR_ITEM_TYPE,
 } from '@isoheim/shared';
 import { NetworkManager } from '../network/NetworkManager';
+import { formatItemStats } from './formatItemStats';
 
 const COLS = 4;
 const ROWS = 5;
@@ -44,7 +45,6 @@ const STAT_DISPLAY_LABELS: Record<keyof ItemStats, string> = {
 
 const STAT_IMPROVE_COLOR = '#44cc44';
 const STAT_WORSE_COLOR = '#cc4444';
-const STAT_NEUTRAL_COLOR = '#aaaacc';
 
 export class InventoryPanel {
   private scene: Phaser.Scene;
@@ -202,13 +202,7 @@ export class InventoryPanel {
     text += `${def.type} | ${def.rarity}\n`;
     if (def.description) text += `${def.description}\n`;
 
-    const stats = def.stats;
-    if (stats.attack) text += `+${stats.attack} Attack\n`;
-    if (stats.defense) text += `+${stats.defense} Defense\n`;
-    if (stats.health) text += `+${stats.health} Health\n`;
-    if (stats.mana) text += `+${stats.mana} Mana\n`;
-    if (stats.speed) text += `+${stats.speed} Speed\n`;
-    if (stats.critChance) text += `+${(stats.critChance * 100).toFixed(0)}% Crit\n`;
+    text += formatItemStats(def.stats);
 
     if (def.levelReq > 1) text += `Requires Level ${def.levelReq}\n`;
     if (def.classReq.length > 0 && def.classReq.length < 4) text += `${def.classReq.join(', ')} only\n`;
@@ -268,7 +262,6 @@ export class InventoryPanel {
       const label = STAT_DISPLAY_LABELS[key] || key;
       const prefix = diff > 0 ? '+' : '';
       const formatted = key === 'critChance' ? `${(diff * 100).toFixed(0)}%` : `${diff}`;
-      const color = diff > 0 ? STAT_IMPROVE_COLOR : STAT_WORSE_COLOR;
       comparison += `  ${prefix}${formatted} ${label}\n`;
     }
 
