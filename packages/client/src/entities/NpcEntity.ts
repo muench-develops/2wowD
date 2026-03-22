@@ -68,7 +68,7 @@ export class NpcEntity {
   }
 
   private createNpcTexture(scene: Phaser.Scene, key: string, color: number): void {
-    const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+    const graphics = scene.make.graphics({ x: 0, y: 0 }, false);
     
     // Draw NPC body (friendly humanoid shape)
     graphics.fillStyle(color, 1);

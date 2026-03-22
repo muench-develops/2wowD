@@ -22,6 +22,7 @@ export interface MinimapEntityData {
 export class Minimap {
   private scene: Phaser.Scene;
   private container: Phaser.GameObjects.Container;
+  private visible = true;
   private dots: Phaser.GameObjects.Graphics;
   private mapImage: Phaser.GameObjects.Image | null = null;
   private bg: Phaser.GameObjects.Graphics;
@@ -107,6 +108,11 @@ export class Minimap {
         this.dots.fillCircle(local.x * SCALE, local.y * SCALE, 4);
       }
     }
+  }
+
+  toggle(): void {
+    this.visible = !this.visible;
+    this.container.setVisible(this.visible);
   }
 
   destroy(): void {

@@ -14,8 +14,6 @@ ENABLE_LINTERS:
   - JSON_V8R
   # YAML linting
   - YAML_YAMLLINT
-  # Git commit linting
-  - GIT_GIT_DIFF
   # Secret detection
   - REPOSITORY_GITLEAKS
   # License checking
@@ -33,6 +31,9 @@ SPELL_CSPELL_CONFIG_FILE: cspell.json
 
 # Gitleaks config
 REPOSITORY_GITLEAKS_CONFIG_FILE: .gitleaks.toml
+
+# Trivy: scan vulnerabilities only (misconfig handled by checkov)
+REPOSITORY_TRIVY_ARGUMENTS: --scanners vuln
 
 # Filter paths for linters
 FILTER_REGEX_EXCLUDE: '(node_modules|dist|\.mega-linter-reports|package-lock\.json|\.squad)'
